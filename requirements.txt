@@ -1,0 +1,10 @@
+flask
+spotipy
+python-mpv
+pulsectl
+requests
+Pillow
+numpy
+gpiod
+lgpio
+spidev

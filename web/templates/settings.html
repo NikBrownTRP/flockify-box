@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="settings-page">
+    <section class="card">
+        <h2 class="section-title">Volume</h2>
+        <label class="form-label" for="max-volume">
+            Max Volume: <span id="max-volume-value">{{ config.get('max_volume', 80) }}</span>
+        </label>
+        <input type="range" id="max-volume" class="volume-slider"
+               min="0" max="100"
+               value="{{ config.get('max_volume', 80) }}">
+
+        <label class="form-label" for="volume-step">Volume Step (1-20)</label>
+        <input type="number" id="volume-step" class="input"
+               min="1" max="20"
+               value="{{ config.get('volume_step', 5) }}">
+    </section>
+
+    <section class="card">
+        <h2 class="section-title">Display</h2>
+        <label class="form-label" for="backlight">
+            Backlight: <span id="backlight-value">{{ config.get('display', {}).get('backlight', 80) }}</span>
+        </label>
+        <input type="range" id="backlight" class="volume-slider"
+               min="0" max="100"
+               value="{{ config.get('display', {}).get('backlight', 80) }}">
+    </section>
+
+    <section class="card">
+        <h2 class="section-title">Spotify Connection</h2>
+        {% if spotify_connected %}
+            <div class="status-row">
+                <span class="badge badge-green">Connected</span>
+                <span class="device-name">{{ device_name }}</span>
+            </div>
+        {% elif spotify_configured %}
+            <div class="status-row">
+                <span class="badge badge-gray">Configured (device offline)</span>
+            </div>
+        {% else %}
+            <form class="spotify-form" onsubmit="connectSpotify(event)">
+                <label class="form-label" for="client-id">Client ID</label>
+                <input type="text" id="client-id" class="input"
+                       placeholder="Spotify Client ID"
+                       autocomplete="off" required>
+                <label class="form-label" for="client-secret">Client Secret</label>
+                <input type="password" id="client-secret" class="input"
+                       placeholder="Spotify Client Secret"
+                       autocomplete="off" required>
+                <button type="submit" class="btn btn-primary">Connect to Spotify</button>
+            </form>
+            <div class="error-message" id="spotify-error" style="display:none"></div>
+        {% endif %}
+    </section>
+
+    <div class="settings-actions">
+        <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        <div class="error-message" id="settings-error" style="display:none"></div>
+        <div class="success-message" id="settings-success" style="display:none">Settings saved</div>
+    </div>
+</div>
+{% endblock %}

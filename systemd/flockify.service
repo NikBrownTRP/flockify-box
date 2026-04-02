@@ -1,0 +1,18 @@
+[Unit]
+Description=Flockify Box Music Player
+After=network-online.target pulseaudio.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/flockify
+ExecStart=/home/pi/flockify/venv/bin/python3 /home/pi/flockify/flockify.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PULSE_SERVER=unix:/run/user/1000/pulse/native
+
+[Install]
+WantedBy=multi-user.target

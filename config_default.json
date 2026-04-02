@@ -1,0 +1,24 @@
+{
+  "spotify": {
+    "client_id": "",
+    "client_secret": "",
+    "redirect_uri": "http://flockifybox.local:5000/callback",
+    "refresh_token": "",
+    "device_name": "flockifybox"
+  },
+  "playlists": [],
+  "webradio": {
+    "name": "Radino",
+    "url": "https://stream.radino.at/radino",
+    "image_path": "images/radino.png"
+  },
+  "max_volume": 80,
+  "volume_step": 5,
+  "state": {
+    "mode_index": 0,
+    "volume": 50
+  },
+  "display": {
+    "backlight": 80
+  }
+}

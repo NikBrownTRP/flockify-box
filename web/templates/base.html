@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Flockify Box</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="nav-bar">
+        <a href="/" class="nav-tab {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+        <a href="/playlists" class="nav-tab {% if request.path == '/playlists' %}active{% endif %}">Playlists</a>
+        <a href="/settings" class="nav-tab {% if request.path == '/settings' %}active{% endif %}">Settings</a>
+    </nav>
+
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
