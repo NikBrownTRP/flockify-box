@@ -18,6 +18,7 @@ class StateMachine:
         self.display = display_manager
         self.audio_router = audio_router
         self.lock = threading.Lock()
+        self.time_scheduler = None  # Set by flockify.py after init
 
         # Load persisted state
         state = self.config.get_state()
@@ -66,13 +67,27 @@ class StateMachine:
     # Mode switching
     # ------------------------------------------------------------------
 
+    def _is_locked(self):
+        """Check if time scheduler has locked all controls (nighttime)."""
+        return self.time_scheduler and self.time_scheduler.is_locked()
+
+    def _effective_max_volume(self):
+        """Return max volume respecting time schedule."""
+        if self.time_scheduler:
+            return self.time_scheduler.get_effective_max_volume()
+        return self.config.get('max_volume', 80)
+
     def next_mode(self):
+        if self._is_locked():
+            return
         with self.lock:
             self.mode_index = (self.mode_index + 1) % self.get_mode_count()
             self._activate_mode()
             self._save_state()
 
     def set_mode(self, index):
+        if self._is_locked():
+            return
         with self.lock:
             if 0 <= index < self.get_mode_count():
                 self.mode_index = index
@@ -84,14 +99,18 @@ class StateMachine:
     # ------------------------------------------------------------------
 
     def volume_up(self):
+        if self._is_locked():
+            return
         with self.lock:
             step = self.config.get('volume_step', 5)
-            max_vol = self.config.get('max_volume', 80)
+            max_vol = self._effective_max_volume()
             self.volume = min(self.volume + step, max_vol)
             self._apply_volume(self.volume)
             self._save_state()
 
     def volume_down(self):
+        if self._is_locked():
+            return
         with self.lock:
             step = self.config.get('volume_step', 5)
             self.volume = max(self.volume - step, 0)
@@ -99,8 +118,10 @@ class StateMachine:
             self._save_state()
 
     def set_volume(self, level):
+        if self._is_locked():
+            return
         with self.lock:
-            max_vol = self.config.get('max_volume', 80)
+            max_vol = self._effective_max_volume()
             self.volume = max(0, min(int(level), max_vol))
             self._apply_volume(self.volume)
             self._save_state()
@@ -110,6 +131,8 @@ class StateMachine:
     # ------------------------------------------------------------------
 
     def next_track(self):
+        if self._is_locked():
+            return
         with self.lock:
             if self.is_spotify_mode():
                 try:
@@ -118,6 +141,8 @@ class StateMachine:
                     print(f"[StateMachine] Error skipping track: {e}")
 
     def prev_track(self):
+        if self._is_locked():
+            return
         with self.lock:
             if self.is_spotify_mode():
                 try:
@@ -141,14 +166,17 @@ class StateMachine:
             volume = self.volume
             total_modes = self.get_mode_count()
 
+        period = self.time_scheduler.get_current_period() if self.time_scheduler else 'day'
+
         status = {
             'mode': 'webradio' if is_webradio else 'spotify',
             'mode_index': mode_index,
             'total_modes': total_modes,
             'volume': volume,
-            'max_volume': max_vol,
+            'max_volume': self._effective_max_volume(),
             'audio_output': self.audio_router.current_output,
             'is_playing': True,
+            'period': period,
         }
 
         if is_webradio:

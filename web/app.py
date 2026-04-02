@@ -256,6 +256,21 @@ def api_play(idx):
     return jsonify({'ok': True})
 
 
+@app.route('/api/schedule', methods=['POST'])
+def api_schedule():
+    if not config_manager:
+        return jsonify({'error': 'Not initialized'}), 503
+    data = request.get_json(force=True)
+    schedule = config_manager.get('schedule', {})
+    for key in ('enabled', 'night_start', 'night_end', 'night_backlight',
+                'wakeup_start', 'wakeup_end', 'bedtime_start', 'bedtime_end',
+                'quiet_max_volume', 'quiet_backlight'):
+        if key in data:
+            schedule[key] = data[key]
+    config_manager.set('schedule', schedule)
+    return jsonify({'ok': True})
+
+
 @app.route('/api/volume', methods=['POST'])
 def api_volume():
     if not state_machine:

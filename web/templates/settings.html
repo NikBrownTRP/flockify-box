@@ -17,6 +17,85 @@
                value="{{ config.get('volume_step', 5) }}">
     </section>
 
+    {% set sched = config.get('schedule', {}) %}
+    <section class="card">
+        <h2 class="section-title">Schedule</h2>
+
+        <div class="schedule-toggle">
+            <label class="toggle-label">
+                <input type="checkbox" id="schedule-enabled"
+                       {% if sched.get('enabled', false) %}checked{% endif %}>
+                <span>Enable time-based schedule</span>
+            </label>
+        </div>
+
+        <div class="schedule-fields" id="schedule-fields">
+            <div class="schedule-group">
+                <label class="form-label">Nighttime (no music, sleep screen)</label>
+                <div class="time-row">
+                    <input type="time" id="night-start" class="input input-time"
+                           value="{{ sched.get('night_start', '20:00') }}">
+                    <span class="time-separator">to</span>
+                    <input type="time" id="night-end" class="input input-time"
+                           value="{{ sched.get('night_end', '06:00') }}">
+                </div>
+            </div>
+
+            <div class="schedule-group">
+                <label class="form-label">Wake-up (quiet mode)</label>
+                <div class="time-row">
+                    <input type="time" id="wakeup-start" class="input input-time"
+                           value="{{ sched.get('wakeup_start', '06:00') }}">
+                    <span class="time-separator">to</span>
+                    <input type="time" id="wakeup-end" class="input input-time"
+                           value="{{ sched.get('wakeup_end', '07:00') }}">
+                </div>
+            </div>
+
+            <div class="schedule-group">
+                <label class="form-label">Go-to-bed (quiet mode)</label>
+                <div class="time-row">
+                    <input type="time" id="bedtime-start" class="input input-time"
+                           value="{{ sched.get('bedtime_start', '19:00') }}">
+                    <span class="time-separator">to</span>
+                    <input type="time" id="bedtime-end" class="input input-time"
+                           value="{{ sched.get('bedtime_end', '20:00') }}">
+                </div>
+            </div>
+
+            <div class="schedule-group">
+                <label class="form-label">
+                    Quiet Max Volume: <span id="quiet-vol-value">{{ sched.get('quiet_max_volume', 40) }}</span>
+                </label>
+                <input type="range" id="quiet-max-volume" class="volume-slider"
+                       min="0" max="100"
+                       value="{{ sched.get('quiet_max_volume', 40) }}">
+            </div>
+
+            <div class="schedule-group">
+                <label class="form-label">
+                    Quiet Backlight: <span id="quiet-bl-value">{{ sched.get('quiet_backlight', 40) }}</span>
+                </label>
+                <input type="range" id="quiet-backlight" class="volume-slider"
+                       min="0" max="100"
+                       value="{{ sched.get('quiet_backlight', 40) }}">
+            </div>
+
+            <div class="schedule-group">
+                <label class="form-label">
+                    Night Backlight: <span id="night-bl-value">{{ sched.get('night_backlight', 5) }}</span>
+                </label>
+                <input type="range" id="night-backlight" class="volume-slider"
+                       min="0" max="20"
+                       value="{{ sched.get('night_backlight', 5) }}">
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveSchedule()" style="margin-top:12px">Save Schedule</button>
+        <div class="error-message" id="schedule-error" style="display:none"></div>
+        <div class="success-message" id="schedule-success" style="display:none"></div>
+    </section>
+
     <section class="card">
         <h2 class="section-title">Display</h2>
         <label class="form-label" for="backlight">

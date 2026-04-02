@@ -16,6 +16,7 @@ from display_manager import DisplayManager
 from spotify_manager import SpotifyManager
 from state_machine import StateMachine
 from bluetooth_manager import BluetoothManager
+from time_scheduler import TimeScheduler
 from lib.webradio_player import WebRadioPlayer
 from web.app import app, init_app
 
@@ -25,11 +26,17 @@ state_machine = None
 audio_router = None
 webradio_player = None
 display_manager = None
+time_scheduler = None
 
 
 def shutdown(signum, frame):
     """Gracefully shut down all subsystems."""
     print("\nShutting down Flockify Box...")
+    if time_scheduler is not None:
+        try:
+            time_scheduler.stop()
+        except Exception as e:
+            print(f"Error stopping scheduler: {e}")
     if button_controller is not None:
         try:
             button_controller.stop()
@@ -59,7 +66,7 @@ def shutdown(signum, frame):
 
 
 def main():
-    global button_controller, state_machine, audio_router, webradio_player, display_manager
+    global button_controller, state_machine, audio_router, webradio_player, display_manager, time_scheduler
 
     # ------------------------------------------------------------------
     # 1. Parse args
@@ -169,7 +176,18 @@ def main():
             button_controller = None
 
     # ------------------------------------------------------------------
-    # 8b. Init BluetoothManager
+    # 8b. Init TimeScheduler
+    # ------------------------------------------------------------------
+    try:
+        time_scheduler = TimeScheduler(config_manager, state_machine, display_manager)
+        state_machine.time_scheduler = time_scheduler
+        print("[flockify] Time scheduler initialized")
+    except Exception as e:
+        print(f"[flockify] WARNING: Time scheduler init failed: {e}")
+        time_scheduler = None
+
+    # ------------------------------------------------------------------
+    # 8c. Init BluetoothManager
     # ------------------------------------------------------------------
     try:
         bluetooth_mgr = BluetoothManager()
@@ -202,6 +220,10 @@ def main():
         callback=state_machine.on_audio_output_changed,
         interval=5,
     )
+
+    # Start time scheduler
+    if time_scheduler:
+        time_scheduler.start()
 
     # ------------------------------------------------------------------
     # 11. Resume state

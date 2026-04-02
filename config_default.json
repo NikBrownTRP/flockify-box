@@ -20,5 +20,17 @@
   },
   "display": {
     "backlight": 80
+  },
+  "schedule": {
+    "enabled": false,
+    "night_start": "20:00",
+    "night_end": "06:00",
+    "night_backlight": 5,
+    "wakeup_start": "06:00",
+    "wakeup_end": "07:00",
+    "bedtime_start": "19:00",
+    "bedtime_end": "20:00",
+    "quiet_max_volume": 40,
+    "quiet_backlight": 40
   }
 }

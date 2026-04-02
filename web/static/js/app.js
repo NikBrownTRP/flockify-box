@@ -324,6 +324,57 @@
     }
 
     // ------------------------------------------------------------------
+    // Schedule
+    // ------------------------------------------------------------------
+
+    window.saveSchedule = function () {
+        var data = {
+            enabled: document.getElementById('schedule-enabled').checked,
+            night_start: document.getElementById('night-start').value,
+            night_end: document.getElementById('night-end').value,
+            wakeup_start: document.getElementById('wakeup-start').value,
+            wakeup_end: document.getElementById('wakeup-end').value,
+            bedtime_start: document.getElementById('bedtime-start').value,
+            bedtime_end: document.getElementById('bedtime-end').value,
+            quiet_max_volume: parseInt(document.getElementById('quiet-max-volume').value, 10),
+            quiet_backlight: parseInt(document.getElementById('quiet-backlight').value, 10),
+            night_backlight: parseInt(document.getElementById('night-backlight').value, 10)
+        };
+        api('POST', '/api/schedule', data).then(function () {
+            showSuccess('schedule-success', 'Schedule saved');
+        }).catch(function (err) {
+            showError('schedule-error', err.message);
+        });
+    };
+
+    function initScheduleSliders() {
+        var pairs = [
+            ['quiet-max-volume', 'quiet-vol-value'],
+            ['quiet-backlight', 'quiet-bl-value'],
+            ['night-backlight', 'night-bl-value']
+        ];
+        pairs.forEach(function (p) {
+            var slider = document.getElementById(p[0]);
+            var display = document.getElementById(p[1]);
+            if (slider && display) {
+                slider.addEventListener('input', function () {
+                    display.textContent = slider.value;
+                });
+            }
+        });
+
+        // Toggle schedule fields visibility
+        var toggle = document.getElementById('schedule-enabled');
+        var fields = document.getElementById('schedule-fields');
+        if (toggle && fields) {
+            fields.style.display = toggle.checked ? '' : 'none';
+            toggle.addEventListener('change', function () {
+                fields.style.display = toggle.checked ? '' : 'none';
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
     // Bluetooth
     // ------------------------------------------------------------------
 
@@ -436,6 +487,11 @@
         // Settings: bind slider display updates
         if (document.getElementById('max-volume')) {
             initSettingsSliders();
+        }
+
+        // Schedule: bind sliders and toggle
+        if (document.getElementById('schedule-enabled')) {
+            initScheduleSliders();
         }
     });
 

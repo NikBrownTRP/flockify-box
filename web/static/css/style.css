@@ -485,6 +485,58 @@ body {
     color: var(--color-text-secondary);
 }
 
+/* ----- Schedule section ----- */
+.schedule-toggle {
+    margin-bottom: 16px;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+}
+
+.schedule-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.schedule-group {
+    padding-bottom: 4px;
+}
+
+.time-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-time {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    margin-bottom: 0;
+}
+
+.time-separator {
+    font-size: 0.8125rem;
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+}
+
 /* ----- Bluetooth section ----- */
 .bt-device-row {
     display: flex;
