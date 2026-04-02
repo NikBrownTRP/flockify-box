@@ -19,15 +19,17 @@ state_machine = None
 config_manager = None
 spotify_manager = None
 display_manager = None
+bluetooth_manager = None
 
 
-def init_app(sm, cm, spm, dm=None):
+def init_app(sm, cm, spm, dm=None, bm=None):
     """Initialize app with references to subsystems."""
-    global state_machine, config_manager, spotify_manager, display_manager
+    global state_machine, config_manager, spotify_manager, display_manager, bluetooth_manager
     state_machine = sm
     config_manager = cm
     spotify_manager = spm
     display_manager = dm
+    bluetooth_manager = bm
 
 
 # ------------------------------------------------------------------
@@ -85,11 +87,18 @@ def settings_page():
     spotify_configured = spotify_manager.is_configured() if spotify_manager else False
     spotify_connected = spotify_manager.is_connected() if spotify_manager and spotify_configured else False
     device_name = config.get('spotify', {}).get('device_name', 'flockifybox')
+    bt_connected = None
+    bt_paired = []
+    if bluetooth_manager:
+        bt_connected = bluetooth_manager.get_connected_device()
+        bt_paired = bluetooth_manager.get_paired_devices()
     return render_template('settings.html',
                            config=config,
                            spotify_configured=spotify_configured,
                            spotify_connected=spotify_connected,
-                           device_name=device_name)
+                           device_name=device_name,
+                           bt_connected=bt_connected,
+                           bt_paired=bt_paired)
 
 
 @app.route('/callback')
@@ -255,3 +264,75 @@ def api_volume():
     vol = data.get('volume', 50)
     state_machine.set_volume(int(vol))
     return jsonify({'ok': True})
+
+
+# ------------------------------------------------------------------
+# Bluetooth API routes
+# ------------------------------------------------------------------
+
+@app.route('/api/bluetooth/scan', methods=['POST'])
+def api_bt_scan():
+    if not bluetooth_manager:
+        return jsonify({'error': 'Bluetooth not available'}), 503
+    try:
+        devices = bluetooth_manager.scan(duration=8)
+        return jsonify(devices)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/bluetooth/devices', methods=['GET'])
+def api_bt_devices():
+    if not bluetooth_manager:
+        return jsonify({'error': 'Bluetooth not available'}), 503
+    try:
+        devices = bluetooth_manager.get_paired_devices()
+        return jsonify(devices)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/bluetooth/pair', methods=['POST'])
+def api_bt_pair():
+    if not bluetooth_manager:
+        return jsonify({'error': 'Bluetooth not available'}), 503
+    data = request.get_json(force=True)
+    address = data.get('address', '')
+    result = bluetooth_manager.pair(address)
+    if result.get('ok'):
+        return jsonify(result)
+    return jsonify(result), 400
+
+
+@app.route('/api/bluetooth/connect', methods=['POST'])
+def api_bt_connect():
+    if not bluetooth_manager:
+        return jsonify({'error': 'Bluetooth not available'}), 503
+    data = request.get_json(force=True)
+    address = data.get('address', '')
+    result = bluetooth_manager.connect(address)
+    if result.get('ok'):
+        return jsonify(result)
+    return jsonify(result), 400
+
+
+@app.route('/api/bluetooth/disconnect', methods=['POST'])
+def api_bt_disconnect():
+    if not bluetooth_manager:
+        return jsonify({'error': 'Bluetooth not available'}), 503
+    data = request.get_json(force=True)
+    address = data.get('address', '')
+    result = bluetooth_manager.disconnect(address)
+    if result.get('ok'):
+        return jsonify(result)
+    return jsonify(result), 400
+
+
+@app.route('/api/bluetooth/devices/<address>', methods=['DELETE'])
+def api_bt_forget(address):
+    if not bluetooth_manager:
+        return jsonify({'error': 'Bluetooth not available'}), 503
+    result = bluetooth_manager.forget(address)
+    if result.get('ok'):
+        return jsonify(result)
+    return jsonify(result), 400

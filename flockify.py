@@ -15,6 +15,7 @@ from audio_router import AudioRouter
 from display_manager import DisplayManager
 from spotify_manager import SpotifyManager
 from state_machine import StateMachine
+from bluetooth_manager import BluetoothManager
 from lib.webradio_player import WebRadioPlayer
 from web.app import app, init_app
 
@@ -168,9 +169,19 @@ def main():
             button_controller = None
 
     # ------------------------------------------------------------------
+    # 8b. Init BluetoothManager
+    # ------------------------------------------------------------------
+    try:
+        bluetooth_mgr = BluetoothManager()
+        print("[flockify] Bluetooth manager initialized")
+    except Exception as e:
+        print(f"[flockify] WARNING: Bluetooth manager init failed: {e}")
+        bluetooth_mgr = None
+
+    # ------------------------------------------------------------------
     # 9. Init Flask web server
     # ------------------------------------------------------------------
-    init_app(state_machine, config_manager, spotify_manager, display_manager)
+    init_app(state_machine, config_manager, spotify_manager, display_manager, bluetooth_mgr)
 
     flask_thread = threading.Thread(
         target=lambda: app.run(

@@ -485,6 +485,96 @@ body {
     color: var(--color-text-secondary);
 }
 
+/* ----- Bluetooth section ----- */
+.bt-device-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.bt-device-row:last-child {
+    border-bottom: none;
+}
+
+.bt-device-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bt-icon {
+    color: var(--color-accent);
+    flex-shrink: 0;
+}
+
+.bt-device-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.bt-device-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.bt-no-device {
+    font-size: 0.8125rem;
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    padding: 4px 0;
+}
+
+.bt-paired-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.bt-scan-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.bt-scan-status {
+    margin-top: 12px;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+}
+
+.bt-scanning-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bt-scanning-text::before {
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.bt-device-list {
+    margin-top: 8px;
+}
+
+.btn-sm {
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
+}
+
 .spotify-form .btn {
     margin-top: 8px;
 }

@@ -28,6 +28,58 @@
     </section>
 
     <section class="card">
+        <h2 class="section-title">Bluetooth</h2>
+
+        <div class="bt-connected" id="bt-connected">
+            {% if bt_connected %}
+            <div class="bt-device-row">
+                <div class="bt-device-info">
+                    <svg class="bt-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg>
+                    <span class="bt-device-name">{{ bt_connected.name }}</span>
+                    <span class="badge badge-green">Connected</span>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="disconnectBt('{{ bt_connected.address }}')">Disconnect</button>
+            </div>
+            {% else %}
+            <p class="bt-no-device">No device connected</p>
+            {% endif %}
+        </div>
+
+        {% if bt_paired %}
+        <div class="bt-paired-section">
+            <label class="form-label">Paired Devices</label>
+            <div class="bt-device-list" id="bt-paired-list">
+                {% for dev in bt_paired %}
+                {% if not dev.connected %}
+                <div class="bt-device-row">
+                    <span class="bt-device-name">{{ dev.name }}</span>
+                    <div class="bt-device-actions">
+                        <button class="btn-icon" onclick="connectBt('{{ dev.address }}')" title="Connect">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg>
+                        </button>
+                        <button class="btn-icon btn-delete" onclick="forgetBt('{{ dev.address }}')" title="Forget">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bt-scan-section">
+            <button class="btn btn-secondary" id="btn-bt-scan" onclick="scanBluetooth()">Scan for Devices</button>
+            <div class="bt-scan-status" id="bt-scan-status" style="display:none">
+                <span class="bt-scanning-text">Scanning...</span>
+            </div>
+            <div class="bt-device-list" id="bt-scan-results" style="display:none"></div>
+        </div>
+        <div class="error-message" id="bt-error" style="display:none"></div>
+        <div class="success-message" id="bt-success" style="display:none"></div>
+    </section>
+
+    <section class="card">
         <h2 class="section-title">Spotify Connection</h2>
         {% if spotify_connected %}
             <div class="status-row">

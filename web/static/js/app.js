@@ -324,6 +324,104 @@
     }
 
     // ------------------------------------------------------------------
+    // Bluetooth
+    // ------------------------------------------------------------------
+
+    window.scanBluetooth = function () {
+        var btn = document.getElementById('btn-bt-scan');
+        var status = document.getElementById('bt-scan-status');
+        var results = document.getElementById('bt-scan-results');
+
+        btn.classList.add('loading');
+        btn.textContent = 'Scanning...';
+        status.style.display = 'block';
+        results.style.display = 'none';
+
+        api('POST', '/api/bluetooth/scan').then(function (devices) {
+            btn.classList.remove('loading');
+            btn.textContent = 'Scan for Devices';
+            status.style.display = 'none';
+
+            // Show results
+            while (results.firstChild) results.removeChild(results.firstChild);
+
+            var unpaired = devices.filter(function (d) { return !d.paired; });
+            if (unpaired.length === 0) {
+                var p = document.createElement('p');
+                p.className = 'bt-no-device';
+                p.textContent = 'No new devices found';
+                results.appendChild(p);
+            } else {
+                unpaired.forEach(function (dev) {
+                    var row = document.createElement('div');
+                    row.className = 'bt-device-row';
+
+                    var name = document.createElement('span');
+                    name.className = 'bt-device-name';
+                    name.textContent = dev.name;
+                    row.appendChild(name);
+
+                    var pairBtn = document.createElement('button');
+                    pairBtn.className = 'btn btn-primary btn-sm';
+                    pairBtn.textContent = 'Pair';
+                    pairBtn.onclick = function () { pairBt(dev.address, pairBtn); };
+                    row.appendChild(pairBtn);
+
+                    results.appendChild(row);
+                });
+            }
+            results.style.display = 'block';
+        }).catch(function (err) {
+            btn.classList.remove('loading');
+            btn.textContent = 'Scan for Devices';
+            status.style.display = 'none';
+            showError('bt-error', err.message);
+        });
+    };
+
+    function pairBt(address, btn) {
+        btn.classList.add('loading');
+        btn.textContent = 'Pairing...';
+
+        api('POST', '/api/bluetooth/pair', { address: address }).then(function () {
+            showSuccess('bt-success', 'Device paired and connected');
+            setTimeout(function () { window.location.reload(); }, 1000);
+        }).catch(function (err) {
+            btn.classList.remove('loading');
+            btn.textContent = 'Pair';
+            showError('bt-error', err.message);
+        });
+    }
+
+    window.connectBt = function (address) {
+        api('POST', '/api/bluetooth/connect', { address: address }).then(function () {
+            showSuccess('bt-success', 'Connected');
+            setTimeout(function () { window.location.reload(); }, 1000);
+        }).catch(function (err) {
+            showError('bt-error', err.message);
+        });
+    };
+
+    window.disconnectBt = function (address) {
+        api('POST', '/api/bluetooth/disconnect', { address: address }).then(function () {
+            showSuccess('bt-success', 'Disconnected');
+            setTimeout(function () { window.location.reload(); }, 1000);
+        }).catch(function (err) {
+            showError('bt-error', err.message);
+        });
+    };
+
+    window.forgetBt = function (address) {
+        if (!confirm('Forget this device?')) return;
+        api('DELETE', '/api/bluetooth/devices/' + encodeURIComponent(address)).then(function () {
+            showSuccess('bt-success', 'Device removed');
+            setTimeout(function () { window.location.reload(); }, 1000);
+        }).catch(function (err) {
+            showError('bt-error', err.message);
+        });
+    };
+
+    // ------------------------------------------------------------------
     // Init
     // ------------------------------------------------------------------
 
