@@ -156,32 +156,15 @@ class DisplayManager:
         self._send_to_display(image)
 
     def show_sleep_screen(self):
-        """Display a black screen with a sleeping moon/zzZ graphic."""
-        from PIL import ImageDraw, ImageFont
-
-        img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), (0, 0, 0))
-        draw = ImageDraw.Draw(img)
-
-        # Draw "zzZ" text centered
+        """Display the sleeping tiger image on the screen."""
+        sleep_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "sleep_tiger.png")
         try:
-            font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-            font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
-        except (IOError, OSError):
-            font_large = ImageFont.load_default()
-            font_small = font_large
-
-        # Moon crescent — draw a white circle then a black circle offset to create crescent
-        cx, cy = DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2 - 30
-        r = 35
-        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(220, 220, 200))
-        draw.ellipse([cx - r + 18, cy - r - 10, cx + r + 18, cy + r - 10], fill=(0, 0, 0))
-
-        # "zzZ" below the moon
-        text = "zzZ"
-        bbox = draw.textbbox((0, 0), text, font=font_large)
-        tw = bbox[2] - bbox[0]
-        draw.text(((DISPLAY_WIDTH - tw) // 2, cy + r + 15), text, fill=(180, 180, 160), font=font_large)
-
+            img = Image.open(sleep_path).convert('RGB')
+            img = img.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.LANCZOS)
+        except Exception as e:
+            # Fallback: black screen if image not found
+            print(f"[display] Could not load sleep image: {e}")
+            img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), (0, 0, 0))
         self.current_image = img
         self._send_to_display(img)
 
