@@ -68,6 +68,11 @@ body {
     color: var(--color-text);
     line-height: 1.5;
     min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    -webkit-user-select: none;
+    user-select: none;
     /* Subtle plastic grain texture */
     background-image:
         repeating-linear-gradient(
@@ -247,6 +252,11 @@ body {
 }
 
 /* ----- Inputs — Inset display style ----- */
+.input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
 .input {
     display: block;
     width: 100%;

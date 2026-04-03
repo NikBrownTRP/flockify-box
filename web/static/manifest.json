@@ -1,0 +1,22 @@
+{
+  "name": "Super Flockify",
+  "short_name": "Flockify",
+  "description": "Raspberry Pi Music Player",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#D4D0C8",
+  "theme_color": "#6B5B95",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
