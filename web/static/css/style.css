@@ -1,53 +1,44 @@
 /* ================================================================
-   Super Flockify — SNES-inspired UI
-   90s game console aesthetic with molded plastic surfaces,
-   pixel typography, and controller-button interactions.
+   Flockify Box — Teenage Engineering Edition
+   Industrial-playful aesthetic inspired by OP-1 / Pocket Operator.
+   Clean geometry, monospace labels, signature orange, LCD readouts.
    ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 /* ----- Custom properties ----- */
 :root {
-    /* SNES shell colors */
-    --snes-shell: #D4D0C8;
-    --snes-shell-light: #E8E4DC;
-    --snes-shell-dark: #B8B4AC;
-    --snes-shell-shadow: #9A968E;
-    --snes-inset: #C0BCB4;
+    --te-white: #FAFAFA;
+    --te-offwhite: #F0EFED;
+    --te-light: #E5E3DF;
+    --te-mid: #C8C5BE;
+    --te-dark: #8A8680;
+    --te-black: #1A1917;
 
-    /* SNES purple accent (the stripe/logo color) */
-    --snes-purple: #6B5B95;
-    --snes-purple-dark: #4A3D6E;
-    --snes-purple-light: #8B7BB5;
+    --te-orange: #FF5C00;
+    --te-orange-dark: #D94E00;
+    --te-orange-light: #FFF0E6;
+    --te-blue: #0066FF;
+    --te-green: #00C853;
+    --te-red: #FF1744;
+    --te-yellow: #FFD600;
 
-    /* ABXY button colors */
-    --btn-a: #7B68EE;    /* blue-purple */
-    --btn-b: #E8C840;    /* yellow */
-    --btn-x: #4A90D9;    /* blue */
-    --btn-y: #50C878;    /* green */
-    --btn-red: #D94040;  /* start/select red */
+    --color-text: var(--te-black);
+    --color-text-secondary: #6B6860;
+    --color-text-muted: #A09C94;
+    --color-danger: var(--te-red);
+    --color-danger-light: #FFE8EC;
+    --color-success: var(--te-green);
+    --color-success-light: #E0F8EC;
 
-    /* Functional */
-    --color-text: #2C2828;
-    --color-text-secondary: #6B6360;
-    --color-text-muted: #9A9490;
-    --color-danger: #D94040;
-    --color-danger-light: #FFE8E8;
-    --color-success: #3A8C50;
-    --color-success-light: #E0F5E6;
+    --radius: 2px;
+    --transition: 100ms ease;
 
-    /* Sizing */
-    --radius: 8px;
-    --radius-lg: 12px;
-    --transition: 120ms ease;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+    --font-body: 'IBM Plex Sans', -apple-system, sans-serif;
 
-    /* Fonts */
-    --font-pixel: 'Press Start 2P', monospace;
-    --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
-
-    /* The classic SNES bevel effect */
-    --bevel-out: inset -2px -2px 0 rgba(0,0,0,0.15), inset 2px 2px 0 rgba(255,255,255,0.4);
-    --bevel-in: inset 2px 2px 0 rgba(0,0,0,0.12), inset -2px -2px 0 rgba(255,255,255,0.3);
+    --border: 1.5px solid var(--te-black);
+    --border-light: 1px solid var(--te-light);
 }
 
 /* ----- Reset ----- */
@@ -64,7 +55,7 @@ html {
 
 body {
     font-family: var(--font-body);
-    background: var(--snes-shell);
+    background: var(--te-offwhite);
     color: var(--color-text);
     line-height: 1.5;
     min-height: 100vh;
@@ -73,185 +64,159 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
     -webkit-user-select: none;
     user-select: none;
-    /* Subtle plastic grain texture */
-    background-image:
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(0,0,0,0.015) 2px,
-            rgba(0,0,0,0.015) 4px
-        ),
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 2px,
-            rgba(0,0,0,0.01) 2px,
-            rgba(0,0,0,0.01) 4px
-        );
 }
 
-/* ----- Navigation — SNES top ridge ----- */
+/* ----- Navigation — hardware panel strip ----- */
 .nav-bar {
     display: flex;
-    background: linear-gradient(180deg, var(--snes-shell-light) 0%, var(--snes-shell) 100%);
-    border-bottom: 3px solid var(--snes-shell-dark);
-    box-shadow: 0 2px 0 rgba(0,0,0,0.08);
+    background: var(--te-black);
     position: sticky;
     top: 0;
     z-index: 100;
 }
 
-.nav-bar::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg,
-        var(--btn-red) 0%, var(--btn-red) 25%,
-        var(--btn-b) 25%, var(--btn-b) 50%,
-        var(--btn-y) 50%, var(--btn-y) 75%,
-        var(--btn-x) 75%, var(--btn-x) 100%
-    );
-}
-
 .nav-tab {
     flex: 1;
     text-align: center;
-    padding: 18px 8px 14px;
+    padding: 14px 8px;
     text-decoration: none;
-    color: var(--color-text-muted);
-    font-family: var(--font-pixel);
-    font-size: 0.5rem;
-    letter-spacing: 0.02em;
+    color: var(--te-mid);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    border-bottom: 3px solid transparent;
-    transition: color var(--transition), border-color var(--transition);
-    margin-top: 3px;
+    border-bottom: 2px solid transparent;
+    transition: color var(--transition);
 }
 
 .nav-tab:hover {
-    color: var(--color-text-secondary);
+    color: var(--te-white);
 }
 
 .nav-tab.active {
-    color: var(--snes-purple);
-    border-bottom-color: var(--snes-purple);
+    color: var(--te-orange);
+    border-bottom-color: var(--te-orange);
 }
 
 /* ----- Content area ----- */
 .content {
-    max-width: 440px;
+    max-width: 420px;
     margin: 0 auto;
-    padding: 20px 16px 48px;
+    padding: 16px 16px 48px;
 }
 
-/* ----- Cards — Molded plastic panels ----- */
+/* ----- Cards — TE module panels ----- */
 .card {
-    background: var(--snes-shell-light);
-    border-radius: var(--radius-lg);
+    background: var(--te-white);
+    border: var(--border);
+    border-radius: var(--radius);
     padding: 20px;
-    margin-bottom: 14px;
-    box-shadow: var(--bevel-out), 0 3px 6px rgba(0,0,0,0.1);
-    border: 1px solid var(--snes-shell-dark);
+    margin-bottom: 12px;
     position: relative;
 }
 
-/* ----- Section titles — Pixel font labels ----- */
+/* ----- Section titles — silk-screen printed labels ----- */
 .section-title {
-    font-family: var(--font-pixel);
-    font-size: 0.5rem;
-    letter-spacing: 0.06em;
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    margin-bottom: 14px;
-    color: var(--snes-purple);
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--snes-inset);
+    margin-bottom: 16px;
+    color: var(--te-orange);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-/* ----- Buttons — SNES controller style ----- */
+.section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--te-light);
+}
+
+/* ----- Buttons — tactile hardware switches ----- */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-height: 44px;
     padding: 10px 20px;
-    border: 2px solid rgba(0,0,0,0.15);
-    border-radius: 24px;
-    font-family: var(--font-body);
-    font-size: 0.8125rem;
-    font-weight: 700;
+    border: var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     cursor: pointer;
     transition: all var(--transition);
     -webkit-tap-highlight-color: transparent;
     user-select: none;
-    box-shadow: var(--bevel-out), 0 3px 0 rgba(0,0,0,0.15);
-    position: relative;
+    background: var(--te-white);
+    color: var(--color-text);
+}
+
+.btn:hover {
+    background: var(--te-offwhite);
 }
 
 .btn:active {
-    box-shadow: var(--bevel-in);
-    transform: translateY(2px);
+    background: var(--te-light);
+    transform: scale(0.97);
 }
 
 .btn-primary {
-    background: var(--snes-purple);
+    background: var(--te-orange);
     color: #fff;
-    border-color: var(--snes-purple-dark);
-    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+    border-color: var(--te-orange-dark);
 }
 
 .btn-primary:hover {
-    background: var(--snes-purple-light);
+    background: var(--te-orange-dark);
 }
 
 .btn-primary:active {
-    background: var(--snes-purple-dark);
+    background: #C04400;
 }
 
 .btn-secondary {
-    background: var(--snes-shell-light);
+    background: var(--te-white);
     color: var(--color-text);
-    border-color: var(--snes-shell-dark);
-}
-
-.btn-secondary:hover {
-    background: var(--snes-shell);
 }
 
 .btn-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
-    border: none;
-    border-radius: 50%;
-    background: var(--snes-inset);
-    color: var(--color-text-secondary);
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--te-light);
+    border-radius: var(--radius);
+    background: var(--te-white);
+    color: var(--color-text-muted);
     cursor: pointer;
     transition: all var(--transition);
     -webkit-tap-highlight-color: transparent;
-    box-shadow: var(--bevel-out);
 }
 
 .btn-icon:hover {
-    background: var(--snes-shell);
+    border-color: var(--te-black);
     color: var(--color-text);
 }
 
 .btn-icon:active {
-    box-shadow: var(--bevel-in);
+    background: var(--te-light);
 }
 
 .btn-delete:hover {
-    background: var(--color-danger-light);
-    color: var(--color-danger);
+    border-color: var(--te-red);
+    color: var(--te-red);
 }
 
-/* ----- Inputs — Inset display style ----- */
+/* ----- Inputs — LCD display style ----- */
 .input, textarea {
     -webkit-user-select: text;
     user-select: text;
@@ -262,162 +227,183 @@ body {
     width: 100%;
     min-height: 44px;
     padding: 10px 12px;
-    border: 2px solid var(--snes-shell-dark);
+    border: var(--border);
     border-radius: var(--radius);
-    font-family: var(--font-body);
-    font-size: 0.875rem;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 400;
     color: var(--color-text);
-    background: var(--snes-shell);
-    box-shadow: var(--bevel-in);
+    background: var(--te-offwhite);
     transition: border-color var(--transition);
     margin-bottom: 10px;
 }
 
 .input:focus {
     outline: none;
-    border-color: var(--snes-purple);
+    border-color: var(--te-orange);
 }
 
 .input::placeholder {
     color: var(--color-text-muted);
-    font-weight: 400;
 }
 
-/* ----- Form labels ----- */
+/* ----- Form labels — silk-screen style ----- */
 .form-label {
     display: block;
-    font-family: var(--font-pixel);
-    font-size: 0.4375rem;
-    letter-spacing: 0.04em;
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-text-secondary);
     margin-bottom: 6px;
 }
 
-/* ----- Volume / range sliders — SNES slider rail ----- */
+/* ----- Volume / range sliders — TE knob track ----- */
 .volume-slider {
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
-    height: 8px;
-    border-radius: 4px;
-    background: var(--snes-shell-dark);
+    height: 3px;
+    border-radius: 0;
+    background: var(--te-light);
     outline: none;
-    margin: 10px 0 16px 0;
-    box-shadow: var(--bevel-in);
+    margin: 12px 0 18px 0;
+    position: relative;
 }
 
 .volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 28px;
-    height: 18px;
-    border-radius: 4px;
-    background: linear-gradient(180deg, var(--snes-shell-light) 0%, var(--snes-shell) 100%);
+    width: 16px;
+    height: 24px;
+    border-radius: 1px;
+    background: var(--te-black);
     cursor: pointer;
-    border: 2px solid var(--snes-shell-dark);
-    box-shadow: var(--bevel-out);
-    transition: transform var(--transition);
+    border: none;
+    transition: background var(--transition);
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+    background: var(--te-orange);
 }
 
 .volume-slider::-webkit-slider-thumb:active {
-    transform: scaleY(0.9);
-    box-shadow: var(--bevel-in);
+    background: var(--te-orange);
 }
 
 .volume-slider::-moz-range-thumb {
-    width: 28px;
-    height: 18px;
-    border-radius: 4px;
-    background: linear-gradient(180deg, var(--snes-shell-light) 0%, var(--snes-shell) 100%);
+    width: 16px;
+    height: 24px;
+    border-radius: 1px;
+    background: var(--te-black);
     cursor: pointer;
-    border: 2px solid var(--snes-shell-dark);
-    box-shadow: var(--bevel-out);
+    border: none;
+}
+
+.volume-slider::-moz-range-thumb:hover {
+    background: var(--te-orange);
 }
 
 /* ----- Badges ----- */
 .badge {
     display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-family: var(--font-pixel);
-    font-size: 0.375rem;
-    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    box-shadow: var(--bevel-out);
+    border: 1px solid;
 }
 
 .badge-green {
-    background: var(--btn-y);
-    color: #fff;
-    text-shadow: 0 1px 0 rgba(0,0,0,0.2);
+    background: transparent;
+    color: var(--te-green);
+    border-color: var(--te-green);
 }
 
 .badge-gray {
-    background: var(--snes-inset);
+    background: transparent;
     color: var(--color-text-muted);
+    border-color: var(--te-mid);
 }
 
-/* ----- Dashboard — Now Playing screen ----- */
+/* ----- Dashboard — Now Playing LCD ----- */
 .now-playing {
-    background: linear-gradient(135deg, var(--snes-shell-light) 0%, var(--snes-shell) 100%);
     text-align: center;
-    padding: 24px 20px;
+    padding: 28px 20px 24px;
+    position: relative;
+}
+
+/* Orange corner indicator dot */
+.now-playing::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--te-orange);
 }
 
 .mode-badge {
     display: inline-block;
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-family: var(--font-pixel);
-    font-size: 0.4375rem;
-    letter-spacing: 0.04em;
+    padding: 3px 10px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin-bottom: 14px;
-    box-shadow: var(--bevel-out);
+    margin-bottom: 16px;
+    border: 1px solid;
 }
 
 .mode-badge {
-    background: var(--btn-a);
-    color: #fff;
-    text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+    background: transparent;
+    color: var(--te-orange);
+    border-color: var(--te-orange);
 }
 
 .mode-badge.webradio {
-    background: var(--btn-b);
-    color: var(--color-text);
-    text-shadow: none;
+    color: var(--te-blue);
+    border-color: var(--te-blue);
 }
 
 .playlist-name {
-    font-family: var(--font-pixel);
-    font-size: 0.75rem;
-    line-height: 1.8;
-    margin-bottom: 10px;
+    font-family: var(--font-body);
+    font-size: 1.375rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 8px;
     color: var(--color-text);
-    word-break: break-word;
+    letter-spacing: -0.02em;
 }
 
 .track-info {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 2px dashed var(--snes-inset);
+    gap: 2px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--te-light);
 }
 
 .track-name {
-    font-size: 0.9375rem;
-    font-weight: 700;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 500;
     color: var(--color-text);
 }
 
 .track-artist {
-    font-size: 0.8125rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
     font-weight: 400;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
 }
 
 .audio-output {
@@ -425,15 +411,16 @@ body {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    font-family: var(--font-pixel);
-    font-size: 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
     color: var(--color-text-muted);
-    margin-top: 12px;
-    letter-spacing: 0.02em;
+    margin-top: 14px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .audio-output .icon {
-    opacity: 0.5;
+    opacity: 0.4;
 }
 
 .volume-card {
@@ -441,58 +428,57 @@ body {
 }
 
 .volume-label {
-    font-family: var(--font-pixel);
-    font-size: 0.4375rem;
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--color-text-secondary);
 }
 
-/* ----- Mode controls — D-pad style ----- */
+/* ----- Mode controls — transport buttons ----- */
 .mode-controls {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    padding: 14px;
-    background: var(--snes-shell-light);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--bevel-out), 0 3px 6px rgba(0,0,0,0.1);
-    border: 1px solid var(--snes-shell-dark);
-    margin-bottom: 14px;
+    gap: 2px;
+    margin-bottom: 12px;
 }
 
 .mode-controls .btn {
     flex: 1;
-    max-width: 120px;
-    min-height: 40px;
-    font-size: 0.75rem;
-    padding: 8px 12px;
+    min-height: 44px;
+    font-size: 0.6875rem;
+    border-radius: var(--radius);
 }
 
 .mode-indicator {
-    font-family: var(--font-pixel);
-    font-size: 0.625rem;
-    color: var(--snes-purple);
-    min-width: 40px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--te-orange);
+    min-width: 52px;
     text-align: center;
-    background: var(--snes-shell);
-    padding: 6px 8px;
-    border-radius: 4px;
-    box-shadow: var(--bevel-in);
+    padding: 10px 8px;
+    background: var(--te-black);
+    color: var(--te-orange);
+    border: var(--border);
 }
 
 /* ----- Playlists page ----- */
 .playlist-count {
-    font-family: var(--font-pixel);
-    font-size: 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
     color: var(--color-text-muted);
-    margin-bottom: 12px;
-    letter-spacing: 0.02em;
+    margin-bottom: 14px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .playlist-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     margin-bottom: 16px;
 }
 
@@ -500,15 +486,15 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px;
+    padding: 10px;
+    border: 1px solid var(--te-light);
     border-radius: var(--radius);
-    background: var(--snes-shell);
-    box-shadow: var(--bevel-in);
-    transition: background var(--transition);
+    background: var(--te-white);
+    transition: border-color var(--transition);
 }
 
 .playlist-item:hover {
-    background: var(--snes-inset);
+    border-color: var(--te-mid);
 }
 
 .playlist-reorder {
@@ -520,12 +506,11 @@ body {
 .playlist-thumb {
     width: 40px;
     height: 40px;
-    border-radius: 4px;
+    border-radius: var(--radius);
     object-fit: cover;
-    background: var(--snes-shell-dark);
+    background: var(--te-light);
     flex-shrink: 0;
-    border: 2px solid var(--snes-shell-dark);
-    box-shadow: var(--bevel-in);
+    border: 1px solid var(--te-light);
 }
 
 .playlist-info {
@@ -535,7 +520,7 @@ body {
 
 .playlist-item-name {
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: 600;
     display: block;
     white-space: nowrap;
     overflow: hidden;
@@ -544,7 +529,7 @@ body {
 
 .add-playlist-form {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     align-items: flex-start;
 }
 
@@ -570,8 +555,8 @@ body {
 }
 
 .device-name {
-    font-family: var(--font-pixel);
-    font-size: 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
     color: var(--color-text-secondary);
 }
 
@@ -584,15 +569,15 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 0.875rem;
-    font-weight: 700;
+    font-size: 0.8125rem;
+    font-weight: 600;
     cursor: pointer;
 }
 
 .toggle-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--snes-purple);
+    width: 16px;
+    height: 16px;
+    accent-color: var(--te-orange);
     cursor: pointer;
 }
 
@@ -609,24 +594,29 @@ body {
 .time-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .input-time {
     flex: 1;
     min-width: 0;
     text-align: center;
-    font-family: var(--font-pixel);
-    font-size: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 600;
     margin-bottom: 0;
     padding: 10px 6px;
+    background: var(--te-black);
+    color: var(--te-orange);
+    border-color: var(--te-black);
 }
 
 .time-separator {
-    font-family: var(--font-pixel);
-    font-size: 0.4375rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
     color: var(--color-text-muted);
     flex-shrink: 0;
+    letter-spacing: 0.04em;
 }
 
 /* ----- Bluetooth section ----- */
@@ -634,8 +624,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 2px solid var(--snes-inset);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--te-light);
 }
 
 .bt-device-row:last-child {
@@ -649,13 +639,13 @@ body {
 }
 
 .bt-icon {
-    color: var(--btn-x);
+    color: var(--te-blue);
     flex-shrink: 0;
 }
 
 .bt-device-name {
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .bt-device-actions {
@@ -664,27 +654,27 @@ body {
 }
 
 .bt-no-device {
-    font-size: 0.8125rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
     color: var(--color-text-muted);
-    font-style: italic;
     padding: 4px 0;
 }
 
 .bt-paired-section {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 2px solid var(--snes-inset);
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--te-light);
 }
 
 .bt-scan-section {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 2px solid var(--snes-inset);
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--te-light);
 }
 
 .bt-scan-status {
     margin-top: 10px;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     color: var(--color-text-secondary);
 }
 
@@ -692,19 +682,21 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-family: var(--font-pixel);
-    font-size: 0.4375rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .bt-scanning-text::before {
     content: '';
     display: inline-block;
-    width: 12px;
-    height: 12px;
-    border: 2px solid var(--snes-shell-dark);
-    border-top-color: var(--snes-purple);
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--te-light);
+    border-top-color: var(--te-orange);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.7s linear infinite;
 }
 
 @keyframes spin {
@@ -718,7 +710,7 @@ body {
 .btn-sm {
     min-height: 32px;
     padding: 4px 12px;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
 }
 
 .spotify-form .btn {
@@ -735,32 +727,30 @@ body {
 
 /* ----- Messages ----- */
 .error-message {
-    color: #fff;
-    font-family: var(--font-pixel);
-    font-size: 0.375rem;
-    line-height: 1.8;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
     margin-top: 10px;
     padding: 10px 12px;
-    background: var(--btn-red);
+    background: var(--color-danger-light);
+    color: var(--te-red);
+    border: 1px solid var(--te-red);
     border-radius: var(--radius);
-    box-shadow: var(--bevel-out);
 }
 
 .success-message {
-    color: #fff;
-    font-family: var(--font-pixel);
-    font-size: 0.375rem;
-    line-height: 1.8;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
     margin-top: 10px;
     padding: 10px 12px;
-    background: var(--color-success);
+    background: var(--color-success-light);
+    color: var(--te-green);
+    border: 1px solid var(--te-green);
     border-radius: var(--radius);
-    box-shadow: var(--bevel-out);
 }
 
 /* ----- Loading state ----- */
 .btn.loading {
-    opacity: 0.5;
+    opacity: 0.4;
     pointer-events: none;
 }
 
@@ -770,36 +760,14 @@ body {
 }
 
 /* ----- Animations ----- */
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
-.card,
-.mode-controls {
-    animation: slideUp 0.25s ease both;
+.card {
+    animation: fadeIn 0.2s ease both;
 }
 
-.card:nth-child(2),
-.mode-controls { animation-delay: 0.06s; }
-.card:nth-child(3) { animation-delay: 0.12s; }
-
-/* ----- Power LED indicator (decorative) ----- */
-body::after {
-    content: '';
-    position: fixed;
-    bottom: 16px;
-    right: 16px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--btn-red);
-    box-shadow: 0 0 6px var(--btn-red), 0 0 12px rgba(217, 64, 64, 0.4);
-    animation: powerPulse 3s ease-in-out infinite;
-    z-index: 200;
-}
-
-@keyframes powerPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
+.card:nth-child(2) { animation-delay: 0.04s; }
+.card:nth-child(3) { animation-delay: 0.08s; }
