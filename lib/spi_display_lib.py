@@ -33,9 +33,15 @@ class SPIDisplay:
         self.dc_pin = dc_pin
         self.rst_pin = rst_pin
         self.bl_pin = bl_pin
-        
-        # Open GPIO chip
-        self.gpio_chip = lgpio.gpiochip_open(0)
+
+        # Open GPIO chip exposing the 40-pin header.
+        # On Raspberry Pi 5 this is the RP1 chip at /dev/gpiochip4.
+        # On Pi 4 and earlier it's /dev/gpiochip0.
+        import os
+        if os.path.exists('/dev/gpiochip4'):
+            self.gpio_chip = lgpio.gpiochip_open(4)
+        else:
+            self.gpio_chip = lgpio.gpiochip_open(0)
         
         # Setup GPIO pins as outputs
         lgpio.gpio_claim_output(self.gpio_chip, self.dc_pin)
