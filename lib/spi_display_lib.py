@@ -35,13 +35,9 @@ class SPIDisplay:
         self.bl_pin = bl_pin
 
         # Open GPIO chip exposing the 40-pin header.
-        # On Raspberry Pi 5 this is the RP1 chip at /dev/gpiochip4.
-        # On Pi 4 and earlier it's /dev/gpiochip0.
-        import os
-        if os.path.exists('/dev/gpiochip4'):
-            self.gpio_chip = lgpio.gpiochip_open(4)
-        else:
-            self.gpio_chip = lgpio.gpiochip_open(0)
+        # On current Raspberry Pi OS (Bookworm/Trixie) kernels, the RP1 chip
+        # is labelled "pinctrl-rp1" at /dev/gpiochip0 (verified with gpiodetect).
+        self.gpio_chip = lgpio.gpiochip_open(0)
         
         # Setup GPIO pins as outputs
         lgpio.gpio_claim_output(self.gpio_chip, self.dc_pin)
@@ -164,7 +160,7 @@ class SPIDisplay:
         """
         # Apply offsets for proper alignment
         x_offset = 0
-        y_offset = 5  # Adjusted for your display
+        y_offset = 0  # Adjusted for your display
         
         x0 += x_offset
         x1 += x_offset
