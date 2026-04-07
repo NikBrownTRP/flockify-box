@@ -64,6 +64,15 @@ else
     echo "WARNING: Raspotify config not found at $RASPOTIFY_CONF"
 fi
 
+# Run raspotify as user nbrown so it can reach the user's PulseAudio/PipeWire
+# socket at /run/user/1000/pulse/native. Also enable linger so the user bus
+# starts at boot without needing an active login session.
+echo "    Configuring raspotify to use user PulseAudio..."
+loginctl enable-linger nbrown || echo "    (linger enable failed — continuing)"
+mkdir -p /etc/systemd/system/raspotify.service.d
+cp "$PROJECT_DIR/systemd/raspotify-override.conf" /etc/systemd/system/raspotify.service.d/override.conf
+systemctl daemon-reload
+
 systemctl restart raspotify
 echo "    Raspotify installed and configured."
 

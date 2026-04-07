@@ -17,8 +17,13 @@ class AudioRouter:
         self.pulse_lock = Lock()
         self.monitoring = False
         self._monitor_thread = None
-        self.current_output = "wired"  # "bluetooth" or "wired"
         self._on_output_change = None  # callback for output changes
+        # Detect current output immediately so status is correct before
+        # the monitor thread runs its first poll.
+        try:
+            self.current_output = self.get_active_output()
+        except Exception:
+            self.current_output = "wired"
 
     # ------------------------------------------------------------------
     # Pulse connection helpers (lazy create / close after use)
@@ -95,8 +100,13 @@ class AudioRouter:
         return None, None
 
     def get_active_output(self):
-        """Returns 'bluetooth' if a BT sink is RUNNING, else 'wired'."""
-        bt_name, _ = self.get_bluetooth_sink()
+        """Return 'bluetooth' if a BT sink exists in any state, else 'wired'.
+
+        A Bluetooth headphone that isn't currently playing audio will be in
+        SUSPENDED state (state == 2), which is normal. We only care whether
+        the sink EXISTS, not whether audio is flowing through it right now.
+        """
+        bt_name, _, _ = self.get_bluetooth_sink_any_state()
         return "bluetooth" if bt_name else "wired"
 
     def get_all_sinks(self):
