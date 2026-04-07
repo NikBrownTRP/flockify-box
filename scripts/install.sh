@@ -36,7 +36,7 @@ echo ">>> Step 2: Installing system packages..."
 apt-get update
 apt-get install -y python3-pip python3-venv python3-pil python3-numpy \
     python3-spidev libmpv-dev pulseaudio pulseaudio-module-bluetooth \
-    avahi-daemon python3-lgpio python3-gpiod
+    avahi-daemon python3-lgpio gpiod libgpiod-dev
 
 echo "    System packages installed."
 
