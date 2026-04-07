@@ -160,7 +160,7 @@ class SPIDisplay:
         """
         # Apply offsets for proper alignment
         x_offset = 0
-        y_offset = 0  # Adjusted for your display
+        y_offset = 5  # Shift image down by 5 pixels for this panel
         
         x0 += x_offset
         x1 += x_offset

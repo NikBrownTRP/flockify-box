@@ -52,7 +52,7 @@ class DisplayManager:
         if image is None:
             return False
 
-        image = image.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.Resampling.LANCZOS)
+        image = self._fit_to_display(image)
 
         self.current_image = image
         display_image = self._composite_bt_icon(image) if self.bluetooth_active else image
@@ -71,7 +71,7 @@ class DisplayManager:
             logger.warning("Webradio image not found: %s", image_path)
             return
 
-        image = image.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.Resampling.LANCZOS)
+        image = self._fit_to_display(image)
 
         self.current_image = image
         display_image = self._composite_bt_icon(image) if self.bluetooth_active else image
@@ -117,7 +117,7 @@ class DisplayManager:
                 image_bytes = image_data_or_url
 
             image = Image.open(io.BytesIO(image_bytes))
-            image = image.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.Resampling.LANCZOS)
+            image = self._fit_to_display(image)
 
             os.makedirs(CACHE_DIR, exist_ok=True)
             index = playlist_dict.get("index", 0)
@@ -151,7 +151,7 @@ class DisplayManager:
             logger.warning("Splash image not found: %s", image_path)
             return
 
-        image = image.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.Resampling.LANCZOS)
+        image = self._fit_to_display(image)
         self.current_image = image
         self._send_to_display(image)
 
@@ -160,7 +160,7 @@ class DisplayManager:
         sleep_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "sleep_tiger.png")
         try:
             img = Image.open(sleep_path).convert('RGB')
-            img = img.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT), Image.LANCZOS)
+            img = self._fit_to_display(img)
         except Exception as e:
             # Fallback: black screen if image not found
             print(f"[display] Could not load sleep image: {e}")
@@ -207,6 +207,29 @@ class DisplayManager:
         except Exception as e:
             logger.error("Failed to load image %s: %s", path, e)
             return None
+
+    def _fit_to_display(self, image):
+        """
+        Resize image to fit the display while preserving aspect ratio.
+        The resized image is centered on a black canvas of exact display size.
+
+        Args:
+            image: PIL Image of any size.
+
+        Returns:
+            A new PIL Image of size (DISPLAY_WIDTH, DISPLAY_HEIGHT).
+        """
+        src_w, src_h = image.size
+        scale = min(DISPLAY_WIDTH / src_w, DISPLAY_HEIGHT / src_h)
+        new_w = max(1, int(src_w * scale))
+        new_h = max(1, int(src_h * scale))
+
+        resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+        canvas = Image.new("RGB", (DISPLAY_WIDTH, DISPLAY_HEIGHT), (0, 0, 0))
+        offset = ((DISPLAY_WIDTH - new_w) // 2, (DISPLAY_HEIGHT - new_h) // 2)
+        canvas.paste(resized, offset)
+        return canvas
 
     def _composite_bt_icon(self, image):
         """
