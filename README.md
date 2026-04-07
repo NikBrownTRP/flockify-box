@@ -251,6 +251,50 @@ python3 flockify.py --no-hardware
 - Check wiring: DC→GPIO25, RST→GPIO27, BL→GPIO18
 - Test display separately: `python3 -c "from lib.spi_display_lib import SPIDisplay; d = SPIDisplay(); d.init(); d.clear((255,0,0))"`
 
+## Auto-update from GitHub
+
+The box checks for updates from GitHub on every boot (before the music player starts). If new commits are available on the `main` branch, they're pulled automatically. If `requirements.txt` changed, Python dependencies are reinstalled.
+
+- **Trigger**: On boot, via `flockify-update.service` (runs before `flockify.service`)
+- **Branch**: `main` only
+- **Merge strategy**: Fast-forward only (never creates merge commits, refuses on divergence)
+- **Timeout**: 90 seconds — if GitHub is unreachable, the box boots with the existing code
+- **Auth**: SSH deploy key (read-only) generated during install
+
+### First-time setup
+
+After running `install.sh`, the script generates an SSH deploy key and prints its public key. You need to add it to the GitHub repo:
+
+1. Copy the public key printed by the installer
+2. Go to [https://github.com/NikBrownTRP/flockify-box/settings/keys/new](https://github.com/NikBrownTRP/flockify-box/settings/keys/new)
+3. Title: `flockifybox-pi`
+4. Paste the key
+5. Leave **"Allow write access"** unchecked (read-only is safer)
+6. Click **Add key**
+
+The next reboot will successfully pull updates.
+
+### Verifying auto-update
+
+```bash
+# View last update attempt
+sudo journalctl -u flockify-update -n 50
+
+# Trigger manually
+sudo systemctl start flockify-update
+
+# Check the deploy key works
+sudo -u pi ssh -T git@github.com
+```
+
+### Disabling auto-update
+
+```bash
+sudo systemctl disable flockify-update
+```
+
+The box will still run normally — updates just become manual (`cd /home/pi/flockify && git pull`).
+
 ## Low Power Mode
 
 The install script enables low power mode automatically to reduce heat and power consumption during long music sessions. Optimizations:

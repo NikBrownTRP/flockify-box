@@ -164,6 +164,63 @@ echo "    - WiFi power saving: enabled"
 echo "    - Raspotify bitrate: 96 kbps"
 
 # =============================================================================
+# Step 11c: Install auto-update service + generate deploy key
+# =============================================================================
+echo ">>> Step 11c: Installing auto-update service..."
+
+chmod +x "$INSTALL_DIR/scripts/auto-update.sh"
+cp "$INSTALL_DIR/systemd/flockify-update.service" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable flockify-update.service
+
+# Generate SSH deploy key for the pi user if it doesn't exist
+DEPLOY_KEY=/home/pi/.ssh/flockify_deploy
+if [ ! -f "$DEPLOY_KEY" ]; then
+    echo "    Generating SSH deploy key for GitHub..."
+    sudo -u pi mkdir -p /home/pi/.ssh
+    sudo -u pi ssh-keygen -t ed25519 -N "" -f "$DEPLOY_KEY" -C "flockifybox-deploy"
+
+    # Configure SSH to use this key for github.com
+    SSH_CONFIG=/home/pi/.ssh/config
+    if ! grep -q "flockify_deploy" "$SSH_CONFIG" 2>/dev/null; then
+        sudo -u pi bash -c "cat >> $SSH_CONFIG" <<EOF
+
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/flockify_deploy
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+EOF
+        sudo -u pi chmod 600 "$SSH_CONFIG"
+    fi
+
+    # Switch the remote URL to SSH so the deploy key is used
+    if [ -d "$INSTALL_DIR/.git" ]; then
+        cd "$INSTALL_DIR"
+        sudo -u pi git remote set-url origin git@github.com:NikBrownTRP/flockify-box.git || true
+        cd - >/dev/null
+    fi
+
+    echo ""
+    echo "    ============================================================"
+    echo "    DEPLOY KEY GENERATED — ACTION REQUIRED"
+    echo "    ============================================================"
+    echo "    Add this public key to your GitHub repo as a deploy key:"
+    echo "      https://github.com/NikBrownTRP/flockify-box/settings/keys/new"
+    echo ""
+    echo "    Key (copy the entire line below):"
+    echo ""
+    cat "${DEPLOY_KEY}.pub"
+    echo ""
+    echo "    Title: 'flockifybox-pi'   Access: read-only"
+    echo "    ============================================================"
+    echo ""
+fi
+
+echo "    Auto-update service installed and enabled."
+
+# =============================================================================
 # Step 12: Complete
 # =============================================================================
 echo ""

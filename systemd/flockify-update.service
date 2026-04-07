@@ -1,0 +1,20 @@
+[Unit]
+Description=Flockify Box auto-update from GitHub
+After=network-online.target
+Wants=network-online.target
+Before=flockify.service
+
+[Service]
+Type=oneshot
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/flockify
+ExecStart=/bin/bash /home/pi/flockify/scripts/auto-update.sh
+TimeoutStartSec=90
+# Don't fail the boot chain if auto-update exits non-zero
+SuccessExitStatus=0 1
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
