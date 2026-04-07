@@ -713,6 +713,39 @@ body {
     font-size: 0.6875rem;
 }
 
+.spotify-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.spotify-hint {
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+}
+
+.btn-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: color var(--transition);
+}
+
+.btn-link:hover {
+    color: var(--te-red);
+}
+
 .spotify-form .btn {
     margin-top: 8px;
 }

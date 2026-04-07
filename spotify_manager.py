@@ -38,6 +38,62 @@ class SpotifyManager:
             and spotify.get("refresh_token")
         )
 
+    def has_credentials(self):
+        """Return True if client_id and client_secret are saved (refresh token may be absent)."""
+        spotify = self.config.get("spotify", {})
+        return bool(spotify.get("client_id") and spotify.get("client_secret"))
+
+    def logout(self):
+        """Clear refresh token + token cache. Keeps client_id/secret for re-auth."""
+        import os
+        spotify = self.config.get("spotify", {})
+        client_id = spotify.get("client_id", "")
+        client_secret = spotify.get("client_secret", "")
+        # Overwrite with empty refresh_token
+        spotify["refresh_token"] = ""
+        self.config.set("spotify", spotify)
+        # Delete token cache file
+        try:
+            if os.path.exists(TOKEN_CACHE_PATH):
+                os.remove(TOKEN_CACHE_PATH)
+        except OSError as e:
+            print(f"[SpotifyManager] Could not delete token cache: {e}")
+        self.sp = None
+        self._device_id = None
+
+    def clear_credentials(self):
+        """Fully clear Spotify credentials (client_id, secret, refresh_token)."""
+        import os
+        self.config.update_spotify_credentials("", "", refresh_token="")
+        # update_spotify_credentials doesn't clear refresh_token if empty, so force-set it
+        spotify = self.config.get("spotify", {})
+        spotify["refresh_token"] = ""
+        self.config.set("spotify", spotify)
+        try:
+            if os.path.exists(TOKEN_CACHE_PATH):
+                os.remove(TOKEN_CACHE_PATH)
+        except OSError as e:
+            print(f"[SpotifyManager] Could not delete token cache: {e}")
+        self.sp = None
+        self._device_id = None
+
+    def reauth_url(self):
+        """Return a fresh Spotify authorization URL using saved credentials."""
+        spotify = self.config.get("spotify", {})
+        client_id = spotify.get("client_id", "")
+        client_secret = spotify.get("client_secret", "")
+        if not (client_id and client_secret):
+            return None
+        auth_manager = SpotifyOAuth(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=spotify.get("redirect_uri", "http://127.0.0.1:5000/callback"),
+            scope=SCOPES,
+            open_browser=False,
+            cache_path=TOKEN_CACHE_PATH,
+        )
+        return auth_manager.get_authorize_url()
+
     def _init_client(self):
         """Create spotipy.Spotify client using SpotifyOAuth with cached token."""
         spotify = self.config.get("spotify", {})

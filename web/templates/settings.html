@@ -160,14 +160,27 @@
 
     <section class="card">
         <h2 class="section-title">Spotify Connection</h2>
-        {% if spotify_connected %}
+        {% if spotify_configured %}
             <div class="status-row">
-                <span class="badge badge-green">Connected</span>
-                <span class="device-name">{{ device_name }}</span>
+                {% if spotify_connected %}
+                    <span class="badge badge-green">Connected</span>
+                    <span class="device-name">{{ device_name }}</span>
+                {% else %}
+                    <span class="badge badge-gray">Configured (device offline)</span>
+                {% endif %}
             </div>
-        {% elif spotify_configured %}
+            <div class="spotify-actions">
+                <button class="btn btn-secondary btn-sm" onclick="logoutSpotify()">Disconnect</button>
+                <button class="btn-link" onclick="clearSpotify()">Clear credentials</button>
+            </div>
+        {% elif spotify_has_creds %}
             <div class="status-row">
-                <span class="badge badge-gray">Configured (device offline)</span>
+                <span class="badge badge-gray">Disconnected</span>
+            </div>
+            <p class="spotify-hint">Credentials saved. Click below to re-authorize.</p>
+            <div class="spotify-actions">
+                <button class="btn btn-primary" onclick="reconnectSpotify()">Reconnect to Spotify</button>
+                <button class="btn-link" onclick="clearSpotify()">Clear credentials</button>
             </div>
         {% else %}
             <form class="spotify-form" onsubmit="connectSpotify(event)">
@@ -181,8 +194,9 @@
                        autocomplete="off" required>
                 <button type="submit" class="btn btn-primary">Connect to Spotify</button>
             </form>
-            <div class="error-message" id="spotify-error" style="display:none"></div>
         {% endif %}
+        <div class="error-message" id="spotify-error" style="display:none"></div>
+        <div class="success-message" id="spotify-success" style="display:none"></div>
     </section>
 
     <div class="settings-actions">

@@ -85,6 +85,7 @@ def playlists_page():
 def settings_page():
     config = config_manager.config if config_manager else {}
     spotify_configured = spotify_manager.is_configured() if spotify_manager else False
+    spotify_has_creds = spotify_manager.has_credentials() if spotify_manager else False
     spotify_connected = spotify_manager.is_connected() if spotify_manager and spotify_configured else False
     device_name = config.get('spotify', {}).get('device_name', 'flockifybox')
     bt_connected = None
@@ -95,6 +96,7 @@ def settings_page():
     return render_template('settings.html',
                            config=config,
                            spotify_configured=spotify_configured,
+                           spotify_has_creds=spotify_has_creds,
                            spotify_connected=spotify_connected,
                            device_name=device_name,
                            bt_connected=bt_connected,
@@ -236,6 +238,44 @@ def api_spotify_connect():
     try:
         auth_url = spotify_manager.get_auth_url(client_id, client_secret)
         return jsonify({'auth_url': auth_url})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/spotify/reauth', methods=['POST'])
+def api_spotify_reauth():
+    """Start a new OAuth flow using already-saved client_id/secret."""
+    if not spotify_manager:
+        return jsonify({'error': 'Not initialized'}), 503
+    try:
+        auth_url = spotify_manager.reauth_url()
+        if not auth_url:
+            return jsonify({'error': 'No saved credentials'}), 400
+        return jsonify({'auth_url': auth_url})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/spotify/logout', methods=['POST'])
+def api_spotify_logout():
+    """Clear refresh token but keep client_id/secret."""
+    if not spotify_manager:
+        return jsonify({'error': 'Not initialized'}), 503
+    try:
+        spotify_manager.logout()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/spotify/clear', methods=['POST'])
+def api_spotify_clear():
+    """Fully clear Spotify credentials (client_id, secret, refresh_token)."""
+    if not spotify_manager:
+        return jsonify({'error': 'Not initialized'}), 503
+    try:
+        spotify_manager.clear_credentials()
+        return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

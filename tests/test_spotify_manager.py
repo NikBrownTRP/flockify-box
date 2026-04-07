@@ -130,6 +130,82 @@ def test_get_current_track_none(mock_oauth, mock_spotipy, full_config):
     assert track is None
 
 
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.SpotifyOAuth")
+def test_has_credentials_true(mock_oauth, mock_spotipy, full_config):
+    from spotify_manager import SpotifyManager
+    mgr = SpotifyManager(full_config)
+    assert mgr.has_credentials() is True
+
+
+@patch("spotify_manager.spotipy")
+def test_has_credentials_false(mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+    mgr = SpotifyManager(empty_config)
+    assert mgr.has_credentials() is False
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.SpotifyOAuth")
+def test_logout_clears_refresh_token(mock_oauth, mock_spotipy, tmp_path, monkeypatch):
+    """logout() should clear refresh_token and token cache but keep client_id/secret."""
+    from spotify_manager import SpotifyManager
+    import spotify_manager as sm
+
+    # Use a real tempfile as the token cache
+    cache_file = tmp_path / ".spotify_token_cache"
+    cache_file.write_text("dummy-token-data")
+    monkeypatch.setattr(sm, "TOKEN_CACHE_PATH", str(cache_file))
+
+    spotify_dict = {
+        "client_id": "cid",
+        "client_secret": "csec",
+        "refresh_token": "rtok",
+        "device_name": "flockifybox",
+    }
+    cm = MagicMock()
+    cm.get.return_value = spotify_dict
+
+    def set_side_effect(key, value):
+        if key == "spotify":
+            spotify_dict.update(value)
+    cm.set.side_effect = set_side_effect
+
+    mgr = SpotifyManager(cm)
+    mgr.sp = MagicMock()
+
+    mgr.logout()
+
+    # refresh_token cleared, but id/secret kept
+    assert spotify_dict["refresh_token"] == ""
+    assert spotify_dict["client_id"] == "cid"
+    assert spotify_dict["client_secret"] == "csec"
+    # Cache file deleted
+    assert not cache_file.exists()
+    # sp is None
+    assert mgr.sp is None
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.SpotifyOAuth")
+def test_reauth_url_returns_url(mock_oauth, mock_spotipy, full_config):
+    from spotify_manager import SpotifyManager
+    mock_oauth_instance = MagicMock()
+    mock_oauth_instance.get_authorize_url.return_value = "https://accounts.spotify.com/authorize?x=1"
+    mock_oauth.return_value = mock_oauth_instance
+
+    mgr = SpotifyManager(full_config)
+    url = mgr.reauth_url()
+    assert url == "https://accounts.spotify.com/authorize?x=1"
+
+
+@patch("spotify_manager.spotipy")
+def test_reauth_url_without_credentials(mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+    mgr = SpotifyManager(empty_config)
+    assert mgr.reauth_url() is None
+
+
 @patch("spotify_manager.SpotifyOAuth")
 def test_api_error_graceful(mock_oauth, full_config):
     """sp.next_track() raising SpotifyException should be caught gracefully."""

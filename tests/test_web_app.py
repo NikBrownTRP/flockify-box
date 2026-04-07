@@ -194,3 +194,34 @@ def test_api_bt_no_manager(client):
         assert resp.status_code == 503
     finally:
         webapp.bluetooth_manager = original_bm
+
+
+def test_api_spotify_logout(client):
+    import web.app as webapp
+    resp = client.post("/api/spotify/logout")
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ok": True}
+    webapp.spotify_manager.logout.assert_called_once()
+
+
+def test_api_spotify_clear(client):
+    import web.app as webapp
+    resp = client.post("/api/spotify/clear")
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ok": True}
+    webapp.spotify_manager.clear_credentials.assert_called_once()
+
+
+def test_api_spotify_reauth_with_creds(client):
+    import web.app as webapp
+    webapp.spotify_manager.reauth_url.return_value = "https://accounts.spotify.com/authorize?x=1"
+    resp = client.post("/api/spotify/reauth")
+    assert resp.status_code == 200
+    assert resp.get_json()["auth_url"].startswith("https://")
+
+
+def test_api_spotify_reauth_no_creds(client):
+    import web.app as webapp
+    webapp.spotify_manager.reauth_url.return_value = None
+    resp = client.post("/api/spotify/reauth")
+    assert resp.status_code == 400

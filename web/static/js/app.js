@@ -301,6 +301,34 @@
         });
     };
 
+    window.reconnectSpotify = function () {
+        api('POST', '/api/spotify/reauth').then(function (data) {
+            if (data.auth_url) {
+                window.location.href = data.auth_url;
+            }
+        }).catch(function (err) {
+            showError('spotify-error', err.message);
+        });
+    };
+
+    window.logoutSpotify = function () {
+        if (!confirm('Disconnect from Spotify? Your Client ID and Secret will be kept so you can reconnect easily.')) return;
+        api('POST', '/api/spotify/logout').then(function () {
+            window.location.reload();
+        }).catch(function (err) {
+            showError('spotify-error', err.message);
+        });
+    };
+
+    window.clearSpotify = function () {
+        if (!confirm('Clear all Spotify credentials? You will need to enter Client ID and Secret again.')) return;
+        api('POST', '/api/spotify/clear').then(function () {
+            window.location.reload();
+        }).catch(function (err) {
+            showError('spotify-error', err.message);
+        });
+    };
+
     // ------------------------------------------------------------------
     // Settings — Slider value display updates
     // ------------------------------------------------------------------
