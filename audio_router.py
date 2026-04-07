@@ -236,7 +236,7 @@ class AudioRouter:
     # Background monitoring
     # ------------------------------------------------------------------
 
-    def monitor(self, callback, interval=5):
+    def monitor(self, callback, interval=10):
         """Polling loop — runs in a background thread.
 
         Checks every *interval* seconds whether the audio output has
@@ -270,7 +270,7 @@ class AudioRouter:
                 except Exception as e:
                     print(f"Output-change callback error: {e}")
 
-    def start_monitoring(self, callback, interval=5):
+    def start_monitoring(self, callback, interval=10):
         """Start the monitor thread."""
         if self.monitoring:
             return

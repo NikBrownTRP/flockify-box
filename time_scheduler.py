@@ -118,9 +118,9 @@ class TimeScheduler:
         self._running = False
 
     def _run(self):
-        """Check period every 30 seconds."""
+        """Check period every 60 seconds (low power mode)."""
         while self._running:
-            time.sleep(30)
+            time.sleep(60)
             self._check_period()
 
     def _check_period(self):

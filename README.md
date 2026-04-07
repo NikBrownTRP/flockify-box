@@ -251,6 +251,53 @@ python3 flockify.py --no-hardware
 - Check wiring: DC→GPIO25, RST→GPIO27, BL→GPIO18
 - Test display separately: `python3 -c "from lib.spi_display_lib import SPIDisplay; d = SPIDisplay(); d.init(); d.clear((255,0,0))"`
 
+## Low Power Mode
+
+The install script enables low power mode automatically to reduce heat and power consumption during long music sessions. Optimizations:
+
+- **CPU governor**: `powersave` (pins to minimum frequency, only ramps up when needed)
+- **HDMI output**: disabled (saves ~150mW, not needed for headless music box)
+- **WiFi power saving**: enabled
+- **Raspotify bitrate**: 96 kbps (still fine quality for kids' music on a small speaker)
+- **Relaxed polling intervals**: Bluetooth monitor 10s, time scheduler 60s
+
+### Verifying low power mode
+
+Run these on the Pi after boot:
+
+```bash
+# Check CPU governor (should print "powersave" for each core)
+cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+
+# Check CPU frequency (should be at minimum ~600000 kHz when idle)
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq
+
+# Check throttling status (should be 0x0 = no throttling)
+vcgencmd get_throttled
+
+# Check CPU temperature
+vcgencmd measure_temp
+
+# Check WiFi power saving
+iw dev wlan0 get power_save
+
+# Check low power service status
+sudo systemctl status flockify-lowpower
+```
+
+### Re-enabling HDMI (e.g., for debugging)
+
+```bash
+vcgencmd display_power 1
+```
+
+### Disabling low power mode
+
+```bash
+sudo systemctl disable --now flockify-lowpower
+sudo reboot
+```
+
 ## Dependencies
 
 **System packages**: python3, libmpv, pulseaudio, pulseaudio-module-bluetooth, avahi-daemon, raspotify

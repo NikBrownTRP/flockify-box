@@ -53,12 +53,12 @@ RASPOTIFY_CONF="/etc/raspotify/conf"
 if [ -f "$RASPOTIFY_CONF" ]; then
     # Update or add configuration values
     sed -i 's/^#*LIBRESPOT_NAME=.*/LIBRESPOT_NAME="flockifybox"/' "$RASPOTIFY_CONF"
-    sed -i 's/^#*LIBRESPOT_BITRATE=.*/LIBRESPOT_BITRATE="160"/' "$RASPOTIFY_CONF"
+    sed -i 's/^#*LIBRESPOT_BITRATE=.*/LIBRESPOT_BITRATE="96"/' "$RASPOTIFY_CONF"
     sed -i 's/^#*LIBRESPOT_BACKEND=.*/LIBRESPOT_BACKEND="pulseaudio"/' "$RASPOTIFY_CONF"
 
     # If the values weren't found and replaced, append them
     grep -q '^LIBRESPOT_NAME=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_NAME="flockifybox"' >> "$RASPOTIFY_CONF"
-    grep -q '^LIBRESPOT_BITRATE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BITRATE="160"' >> "$RASPOTIFY_CONF"
+    grep -q '^LIBRESPOT_BITRATE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BITRATE="96"' >> "$RASPOTIFY_CONF"
     grep -q '^LIBRESPOT_BACKEND=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BACKEND="pulseaudio"' >> "$RASPOTIFY_CONF"
 else
     echo "WARNING: Raspotify config not found at $RASPOTIFY_CONF"
@@ -146,6 +146,22 @@ systemctl daemon-reload
 systemctl enable flockify.service
 
 echo "    Systemd service installed and enabled."
+
+# =============================================================================
+# Step 11b: Install low power mode service
+# =============================================================================
+echo ">>> Step 11b: Installing low power mode service..."
+
+cp "$INSTALL_DIR/systemd/flockify-lowpower.service" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable flockify-lowpower.service
+systemctl start flockify-lowpower.service || echo "    (will start on reboot)"
+
+echo "    Low power mode service installed and enabled."
+echo "    - CPU governor: powersave"
+echo "    - HDMI output: disabled"
+echo "    - WiFi power saving: enabled"
+echo "    - Raspotify bitrate: 96 kbps"
 
 # =============================================================================
 # Step 12: Complete
