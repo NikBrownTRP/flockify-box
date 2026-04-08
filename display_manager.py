@@ -475,12 +475,26 @@ class DisplayManager:
             )
 
     def cleanup(self):
-        """Clean up display resources."""
+        """Clean up display resources and leave the panel dark.
+
+        Blanks the ST7789 frame buffer to black and drops the backlight
+        before releasing the SPI/GPIO handles, so a soft-off Pi 5 (J2
+        power button) doesn't leave the last shown image burned into
+        the still-powered display module.
+        """
         with self._volume_lock:
             if self._volume_timer is not None:
                 self._volume_timer.cancel()
                 self._volume_timer = None
         if self.display is not None:
+            try:
+                self.display.clear((0, 0, 0))
+            except Exception as e:
+                logger.error("Failed to blank display: %s", e)
+            try:
+                self.display.set_backlight(0)
+            except Exception as e:
+                logger.error("Failed to drop backlight: %s", e)
             try:
                 self.display.cleanup()
             except Exception as e:

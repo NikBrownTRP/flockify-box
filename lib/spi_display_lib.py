@@ -240,11 +240,35 @@ class SPIDisplay:
         lgpio.tx_pwm(self.gpio_chip, self.bl_pin, self.pwm_freq, self.pwm_duty)
     
     def cleanup(self):
-        """Clean up resources"""
-        # Turn off PWM
-        lgpio.tx_pwm(self.gpio_chip, self.bl_pin, self.pwm_freq, 0)
-        self.spi.close()
-        lgpio.gpiochip_close(self.gpio_chip)
+        """Clean up resources and leave the display dark.
+
+        Order matters: PWM must be stopped BEFORE we drive the pin low,
+        otherwise tx_pwm will immediately clobber our write. After the
+        static write, a brief sleep lets the display module's RC network
+        settle while the kernel still holds the claim — without it, the
+        GPIO release races with the module's internal pull-up and the
+        backlight flicks back on during shutdown.
+        """
+        try:
+            lgpio.tx_pwm(self.gpio_chip, self.bl_pin, self.pwm_freq, 0)
+        except Exception:
+            pass
+        try:
+            lgpio.gpio_write(self.gpio_chip, self.bl_pin, 0)
+        except Exception:
+            pass
+        try:
+            time.sleep(0.05)
+        except Exception:
+            pass
+        try:
+            self.spi.close()
+        except Exception:
+            pass
+        try:
+            lgpio.gpiochip_close(self.gpio_chip)
+        except Exception:
+            pass
     
     def __enter__(self):
         """Context manager entry"""
