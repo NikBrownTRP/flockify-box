@@ -20,7 +20,6 @@ VOLUME_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", 
 IMAGE_CACHE_MAX = 12
 
 VOLUME_OVERLAY_DURATION_SEC = 2.0
-VOLUME_OVERLAY_OPACITY = 0.85  # 0..1 — how opaque the cartoon overlay sits over the cover
 TE_ORANGE = (255, 92, 0)
 
 # Volume frame filenames in ascending order. The right frame is chosen
@@ -375,13 +374,14 @@ class DisplayManager:
             logger.error("Failed to dismiss volume overlay: %s", e)
 
     def _compose_volume_overlay(self, base_image, ratio, at_max):
-        """Return the cover image with the cartoon-speaker frame composited
-        on top at VOLUME_OVERLAY_OPACITY.
+        """Return the cover with the cartoon-speaker frame composited on top.
 
-        Loads one of 5 pre-rendered PNG frames from images/volume/ based on
-        the volume ratio and blends it over the current playlist cover so
-        the cover stays subtly visible behind the cartoon. Falls back to a
-        solid dark canvas if the asset is missing.
+        Loads one of 5 pre-rendered PNG frames from images/volume/ based
+        on the volume ratio. The PNGs have their own baked-in per-pixel
+        alpha (transparent-ish black background, opaque cartoon) so we
+        just alpha-composite them directly over the cover — no uniform
+        opacity override. Falls back to a solid dark canvas if the asset
+        is missing.
         """
         # Pick the right frame index (0..4)
         if at_max:
@@ -396,21 +396,30 @@ class DisplayManager:
             frame = self._load_image(frame_path)
             if frame is None:
                 raise FileNotFoundError(frame_path)
-            # Letterbox the cartoon to match display dimensions
-            fitted = self._fit_to_display(frame.convert("RGB"))
 
-            # Start from the cover (with BT icon if active) so the
-            # base layer is whatever the user was looking at
+            # Letterbox the cartoon into display size while preserving
+            # its RGBA alpha channel (can't use _fit_to_display — that
+            # pastes onto an opaque RGB canvas and loses transparency).
+            frame_rgba = frame.convert("RGBA")
+            src_w, src_h = frame_rgba.size
+            scale = min(DISPLAY_WIDTH / src_w, DISPLAY_HEIGHT / src_h)
+            new_w = max(1, int(src_w * scale))
+            new_h = max(1, int(src_h * scale))
+            resized = frame_rgba.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            fitted = Image.new("RGBA", (DISPLAY_WIDTH, DISPLAY_HEIGHT), (0, 0, 0, 0))
+            offset = ((DISPLAY_WIDTH - new_w) // 2, (DISPLAY_HEIGHT - new_h) // 2)
+            fitted.paste(resized, offset, resized)
+
+            # Start from the cover (with BT icon if active)
             if self.bluetooth_active:
                 base = self._composite_bt_icon(base_image).convert("RGBA")
             else:
                 base = base_image.copy().convert("RGBA")
 
-            # Apply uniform alpha to the cartoon frame, then composite
-            overlay = fitted.convert("RGBA")
-            alpha = int(255 * VOLUME_OVERLAY_OPACITY)
-            overlay.putalpha(alpha)
-            base.alpha_composite(overlay)
+            # Composite the cartoon — its per-pixel alpha handles the
+            # slightly-transparent black backdrop so the cover bleeds
+            # through only where the cartoon artist intended.
+            base.alpha_composite(fitted)
 
             # Draw a thin progress bar near the bottom showing exact volume.
             # This gives per-click feedback even when the cartoon frame
