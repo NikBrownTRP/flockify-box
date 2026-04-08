@@ -119,6 +119,22 @@ def test_parse_spotify_url_legacy_user_uri():
     assert result == "spotify:playlist:ABC123"
 
 
+def test_parse_spotify_url_album():
+    """Album URL should produce a spotify:album:ID URI."""
+    result = _parse_spotify_url("https://open.spotify.com/album/7zU1NSsPQbHwXXoEHWa1g8?si=acgxFydwR_iCrj2rfjoCuA")
+    assert result == "spotify:album:7zU1NSsPQbHwXXoEHWa1g8"
+
+
+def test_parse_spotify_url_album_intl():
+    result = _parse_spotify_url("https://open.spotify.com/intl-de/album/7zU1NSsPQbHwXXoEHWa1g8")
+    assert result == "spotify:album:7zU1NSsPQbHwXXoEHWa1g8"
+
+
+def test_parse_spotify_url_album_uri():
+    result = _parse_spotify_url("spotify:album:7zU1NSsPQbHwXXoEHWa1g8")
+    assert result == "spotify:album:7zU1NSsPQbHwXXoEHWa1g8"
+
+
 # ------------------------------------------------------------------
 # Page route tests
 # ------------------------------------------------------------------

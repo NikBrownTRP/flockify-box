@@ -37,32 +37,35 @@ def init_app(sm, cm, spm, dm=None, bm=None):
 # ------------------------------------------------------------------
 
 def _parse_spotify_url(url):
-    """Extract a Spotify playlist URI from a URL or URI string.
+    """Extract a Spotify context URI from a URL or URI string.
 
-    Accepts:
+    Accepts both playlists AND albums (Spotify's start_playback API
+    treats both as valid context_uri values). Examples:
       - https://open.spotify.com/playlist/37i9dQZF1DX6z20IXmBjWI?si=...
-      - https://open.spotify.com/intl-de/playlist/37i9dQZF1DX6z20IXmBjWI?si=...
-      - https://open.spotify.com/de/playlist/37i9dQZF1DX6z20IXmBjWI
+      - https://open.spotify.com/album/7zU1NSsPQbHwXXoEHWa1g8?si=...
+      - https://open.spotify.com/intl-de/playlist/...
+      - https://open.spotify.com/de/album/...
       - spotify:playlist:37i9dQZF1DX6z20IXmBjWI
+      - spotify:album:7zU1NSsPQbHwXXoEHWa1g8
       - spotify:user:foo:playlist:37i9dQZF1DX6z20IXmBjWI (legacy)
 
-    Returns 'spotify:playlist:<id>' or None on failure.
+    Returns 'spotify:playlist:<id>' or 'spotify:album:<id>' or None.
     """
     url = url.strip()
     if not url:
         return None
 
     # URI forms (handles legacy spotify:user:xxx:playlist:ID too)
-    uri_match = re.search(r'spotify:(?:user:[^:]+:)?playlist:([A-Za-z0-9]+)', url)
+    uri_match = re.search(r'spotify:(?:user:[^:]+:)?(playlist|album):([A-Za-z0-9]+)', url)
     if uri_match:
-        return f'spotify:playlist:{uri_match.group(1)}'
+        return f'spotify:{uri_match.group(1)}:{uri_match.group(2)}'
 
     # URL form — use re.search instead of re.match so locale prefixes
     # like /intl-de or /de don't break parsing
     parsed = urlparse(url)
-    path_match = re.search(r'/playlist/([A-Za-z0-9]+)', parsed.path)
+    path_match = re.search(r'/(playlist|album)/([A-Za-z0-9]+)', parsed.path)
     if path_match:
-        return f'spotify:playlist:{path_match.group(1)}'
+        return f'spotify:{path_match.group(1)}:{path_match.group(2)}'
 
     return None
 
@@ -145,7 +148,7 @@ def api_add_playlist():
 
     uri = _parse_spotify_url(url)
     if not uri:
-        return jsonify({'error': 'Invalid Spotify playlist URL'}), 400
+        return jsonify({'error': 'Invalid Spotify playlist or album URL'}), 400
 
     # Check limit
     playlists = config_manager.get('playlists', [])

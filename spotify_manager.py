@@ -319,31 +319,43 @@ class SpotifyManager:
             return None
 
     def get_playlist_info(self, uri):
-        """Return dict with playlist name, cover_url, track_count or None.
+        """Return dict with name, cover_url, track_count or None.
 
-        URI can be 'spotify:playlist:ID' or just the playlist ID.
+        URI can be 'spotify:playlist:ID', 'spotify:album:ID', or a bare ID
+        (assumed playlist for backwards compatibility).
         """
         if not self.sp:
             return None
         try:
-            # Extract playlist ID from URI if needed
-            playlist_id = uri
+            # Detect type from URI
+            kind = "playlist"
+            item_id = uri
             if uri.startswith("spotify:playlist:"):
-                playlist_id = uri.split(":")[-1]
+                kind = "playlist"
+                item_id = uri.split(":")[-1]
+            elif uri.startswith("spotify:album:"):
+                kind = "album"
+                item_id = uri.split(":")[-1]
 
-            playlist = self.sp.playlist(playlist_id)
-            images = playlist.get("images", [])
+            if kind == "album":
+                item = self.sp.album(item_id)
+                track_count = item.get("tracks", {}).get("total", 0)
+            else:
+                item = self.sp.playlist(item_id)
+                track_count = item.get("tracks", {}).get("total", 0)
+
+            images = item.get("images", [])
             cover_url = images[0]["url"] if images else ""
             return {
-                "name": playlist.get("name", ""),
+                "name": item.get("name", ""),
                 "cover_url": cover_url,
-                "track_count": playlist.get("tracks", {}).get("total", 0),
+                "track_count": track_count,
             }
         except spotipy.exceptions.SpotifyException as e:
-            print(f"[SpotifyManager] Error getting playlist info: {e}")
+            print(f"[SpotifyManager] Error getting item info: {e}")
             return None
         except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error getting playlist info: {e}")
+            print(f"[SpotifyManager] Connection error getting item info: {e}")
             return None
 
     def is_connected(self):
