@@ -258,7 +258,7 @@ class StateMachine:
                 # docstring and config key `spotify_gain_boost` for details.
                 try:
                     if self.audio_router is not None:
-                        boost = int(self.config.get("spotify_gain_boost", 153))
+                        boost = int(self.config.get("spotify_gain_boost", 135))
                         # Retry briefly — the librespot sink-input is created
                         # asynchronously when the first audio packet arrives.
                         def _apply_boost():
