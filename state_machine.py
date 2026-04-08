@@ -19,6 +19,7 @@ class StateMachine:
         self.audio_router = audio_router
         self.lock = threading.Lock()
         self.time_scheduler = None  # Set by flockify.py after init
+        self.idle_dimmer = None  # Set by flockify.py after init
 
         # Load persisted state
         state = self.config.get_state()
@@ -84,6 +85,7 @@ class StateMachine:
             self.mode_index = (self.mode_index + 1) % self.get_mode_count()
             self._activate_mode()
             self._save_state()
+        self._notify_activity()
 
     def set_mode(self, index):
         if self._is_locked():
@@ -93,6 +95,7 @@ class StateMachine:
                 self.mode_index = index
                 self._activate_mode()
                 self._save_state()
+        self._notify_activity()
 
     # ------------------------------------------------------------------
     # Volume
@@ -105,6 +108,14 @@ class StateMachine:
         except Exception as e:
             print(f"[StateMachine] Error showing volume overlay: {e}")
 
+    def _notify_activity(self):
+        """Tell the idle dimmer that the user just interacted with the box."""
+        if self.idle_dimmer is not None:
+            try:
+                self.idle_dimmer.notify_activity()
+            except Exception as e:
+                print(f"[StateMachine] Error notifying idle dimmer: {e}")
+
     def volume_up(self):
         if self._is_locked():
             return
@@ -114,6 +125,7 @@ class StateMachine:
             self.volume = min(self.volume + step, max_vol)
             self._apply_volume(self.volume)
             self._save_state()
+        self._notify_activity()
         self._show_volume_overlay()
 
     def volume_down(self):
@@ -124,6 +136,7 @@ class StateMachine:
             self.volume = max(self.volume - step, 0)
             self._apply_volume(self.volume)
             self._save_state()
+        self._notify_activity()
         self._show_volume_overlay()
 
     def set_volume(self, level):
@@ -134,6 +147,7 @@ class StateMachine:
             self.volume = max(0, min(int(level), max_vol))
             self._apply_volume(self.volume)
             self._save_state()
+        self._notify_activity()
         self._show_volume_overlay()
 
     # ------------------------------------------------------------------
@@ -149,6 +163,7 @@ class StateMachine:
                     self.spotify.next_track()
                 except Exception as e:
                     print(f"[StateMachine] Error skipping track: {e}")
+        self._notify_activity()
 
     def prev_track(self):
         if self._is_locked():
@@ -159,6 +174,7 @@ class StateMachine:
                     self.spotify.previous_track()
                 except Exception as e:
                     print(f"[StateMachine] Error going to previous track: {e}")
+        self._notify_activity()
 
     # ------------------------------------------------------------------
     # Status

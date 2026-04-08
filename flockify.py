@@ -17,6 +17,7 @@ from spotify_manager import SpotifyManager
 from state_machine import StateMachine
 from bluetooth_manager import BluetoothManager
 from time_scheduler import TimeScheduler
+from idle_dimmer import IdleDimmer
 from lib.webradio_player import WebRadioPlayer
 from web.app import app, init_app
 
@@ -27,11 +28,17 @@ audio_router = None
 webradio_player = None
 display_manager = None
 time_scheduler = None
+idle_dimmer = None
 
 
 def shutdown(signum, frame):
     """Gracefully shut down all subsystems."""
     print("\nShutting down Flockify Box...")
+    if idle_dimmer is not None:
+        try:
+            idle_dimmer.stop()
+        except Exception as e:
+            print(f"Error stopping idle dimmer: {e}")
     if time_scheduler is not None:
         try:
             time_scheduler.stop()
@@ -66,7 +73,7 @@ def shutdown(signum, frame):
 
 
 def main():
-    global button_controller, state_machine, audio_router, webradio_player, display_manager, time_scheduler
+    global button_controller, state_machine, audio_router, webradio_player, display_manager, time_scheduler, idle_dimmer
 
     # ------------------------------------------------------------------
     # 1. Parse args
@@ -187,6 +194,17 @@ def main():
         time_scheduler = None
 
     # ------------------------------------------------------------------
+    # 8b2. Init IdleDimmer (depends on display_manager + time_scheduler + config)
+    # ------------------------------------------------------------------
+    try:
+        idle_dimmer = IdleDimmer(display_manager, time_scheduler, config_manager)
+        state_machine.idle_dimmer = idle_dimmer
+        print("[flockify] Idle dimmer initialized")
+    except Exception as e:
+        print(f"[flockify] WARNING: Idle dimmer init failed: {e}")
+        idle_dimmer = None
+
+    # ------------------------------------------------------------------
     # 8c. Init BluetoothManager
     # ------------------------------------------------------------------
     try:
@@ -224,6 +242,10 @@ def main():
     # Start time scheduler
     if time_scheduler:
         time_scheduler.start()
+
+    # Start idle dimmer
+    if idle_dimmer:
+        idle_dimmer.start()
 
     # ------------------------------------------------------------------
     # 11. Resume state
