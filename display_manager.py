@@ -12,7 +12,7 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 DISPLAY_WIDTH = 240
-DISPLAY_HEIGHT = 280
+DISPLAY_HEIGHT = 285
 BT_ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "bluetooth_icon.png")
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "cache")
 IMAGE_CACHE_MAX = 12

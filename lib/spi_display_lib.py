@@ -11,9 +11,13 @@ from PIL import Image
 import numpy as np
 
 class SPIDisplay:
-    """Display driver for 1.83 inch SPI display (240x280) with ST7789 controller"""
-    
-    def __init__(self, width=240, height=280, dc_pin=25, rst_pin=27, bl_pin=18, 
+    """Display driver for 1.83 inch SPI display (240x285 visible) with ST7789 controller.
+
+    Note: marketed as 240x280 but the actual visible area on this panel
+    is 240x285. Calibrated empirically with a row-marker test pattern.
+    """
+
+    def __init__(self, width=240, height=285, dc_pin=25, rst_pin=27, bl_pin=18,
                  spi_bus=0, spi_device=0, spi_speed=10000000):
         """
         Initialize display
