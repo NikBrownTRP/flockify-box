@@ -322,7 +322,7 @@ class StateMachine:
                 # content on this box, so we knock a further percentage
                 # off mpv's volume to match perceived loudness between
                 # modes. Tunable via `webradio_volume_scale` (float 0-1).
-                wr_scale = float(self.config.get('webradio_volume_scale', 0.9))
+                wr_scale = float(self.config.get('webradio_volume_scale', 0.95))
                 wr_vol = max(0, min(100, int(round(scaled * wr_scale))))
                 self.webradio.set_volume(wr_vol)
         except Exception as e:
