@@ -29,10 +29,23 @@ webradio_player = None
 display_manager = None
 time_scheduler = None
 idle_dimmer = None
+_shutdown_done = False
 
 
 def shutdown(signum, frame):
-    """Gracefully shut down all subsystems."""
+    """Gracefully shut down all subsystems.
+
+    Idempotent: sys.exit(0) at the bottom raises SystemExit, which the
+    main loop's except block also catches and re-calls shutdown() — the
+    guard flag below prevents the second run from racing against the
+    first and hitting "unknown handle" errors on the already-closed
+    lgpio chip (which was corrupting the display clear sequence and
+    leaving the old image stuck on the panel after poweroff).
+    """
+    global _shutdown_done
+    if _shutdown_done:
+        return
+    _shutdown_done = True
     print("\nShutting down Flockify Box...")
     if idle_dimmer is not None:
         try:
