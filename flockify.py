@@ -135,15 +135,72 @@ def main():
             display_manager = DisplayManager(None)
             print("[flockify] Running without hardware display")
 
-        # Show splash image
-        # Prefer the boot_tiger image if present (a custom AI-generated startup
-        # graphic). Falls back to radino.png so older installs still work.
+        # Peek the schedule BEFORE picking the splash so we don't flash a
+        # bright boot image in a dark bedroom. The full TimeScheduler isn't
+        # constructed yet (it needs state_machine), so we read the same
+        # config directly and compute the period with a tiny helper.
+        try:
+            from datetime import datetime as _dt
+            _sched = (config_manager.get("schedule") or {})
+            _period = "day"
+            if _sched.get("enabled", False):
+                _n = _dt.now()
+                _mins = _n.hour * 60 + _n.minute
+
+                def _hhmm(s, d):
+                    try:
+                        h, m = s.split(":")
+                        return int(h) * 60 + int(m)
+                    except Exception:
+                        return d
+
+                def _in(w, s, e):
+                    if s == e:
+                        return False
+                    return (s <= w < e) if s < e else (w >= s or w < e)
+
+                _ns = _hhmm(_sched.get("night_start", "20:00"), 20 * 60)
+                _ne = _hhmm(_sched.get("night_end", "06:00"), 6 * 60)
+                if _in(_mins, _ns, _ne):
+                    _period = "night"
+                else:
+                    _bs = _hhmm(_sched.get("bedtime_start", "19:00"), 19 * 60)
+                    _be = _hhmm(_sched.get("bedtime_end", "20:00"), 20 * 60)
+                    _ws = _hhmm(_sched.get("wakeup_start", "06:00"), 6 * 60)
+                    _we = _hhmm(_sched.get("wakeup_end", "07:00"), 7 * 60)
+                    if _in(_mins, _bs, _be) or _in(_mins, _ws, _we):
+                        _period = "quiet"
+        except Exception:
+            _period = "day"
+
+        # Pick splash image + backlight per period. During night we show the
+        # sleep tiger at 5% so the display is dim from the very first frame
+        # flockify.py draws — no 20-second bright window between the boot
+        # splash and the scheduler applying its settings.
         images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
-        boot_tiger = os.path.join(images_dir, "boot_tiger.png")
-        radino = os.path.join(images_dir, "radino.png")
-        splash_path = boot_tiger if os.path.isfile(boot_tiger) else radino
+        if _period == "night":
+            splash_path = os.path.join(images_dir, "sleep_tiger.png")
+            _initial_backlight = _sched.get("night_backlight", 5)
+        elif _period == "quiet":
+            splash_path = os.path.join(images_dir, "boot_tiger.png")
+            _initial_backlight = _sched.get("quiet_backlight", 40)
+        else:
+            splash_path = os.path.join(images_dir, "boot_tiger.png")
+            _initial_backlight = config_manager.get("display", {}).get("backlight", 80)
+
+        if not os.path.isfile(splash_path):
+            splash_path = os.path.join(images_dir, "radino.png")
+
+        if hardware_mode and spi_display is not None:
+            # Drop to the target backlight BEFORE pushing any frame — otherwise
+            # the SPI init leaves PWM at 100% and the first frame flashes full
+            # brightness for a few ms.
+            try:
+                spi_display.set_backlight(_initial_backlight)
+            except Exception:
+                pass
         display_manager.show_splash(splash_path)
-        print("[flockify] Display initialized")
+        print(f"[flockify] Display initialized (period={_period}, backlight={_initial_backlight}%)")
     except Exception as e:
         print(f"[flockify] WARNING: Display init failed, continuing without display: {e}")
         display_manager = DisplayManager(None)
