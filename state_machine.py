@@ -245,6 +245,31 @@ class StateMachine:
                     self.spotify.play_playlist(playlist.get('uri', ''))
                 except Exception as e:
                     print(f"[StateMachine] Error starting Spotify playlist: {e}")
+                # Re-push the box volume to librespot. Without this, after a
+                # raspotify restart (cold boot, self-heal, crash recovery)
+                # librespot plays back at its stale cached volume instead of
+                # what the box's knob says.
+                try:
+                    self.spotify.set_volume(self.volume)
+                except Exception as e:
+                    print(f"[StateMachine] Error re-applying Spotify volume: {e}")
+                # Apply the fixed downstream sink-input gain to close the
+                # audiobook-vs-webradio loudness gap. See audio_router
+                # docstring and config key `spotify_gain_boost` for details.
+                try:
+                    if self.audio_router is not None:
+                        boost = int(self.config.get("spotify_gain_boost", 250))
+                        # Retry briefly — the librespot sink-input is created
+                        # asynchronously when the first audio packet arrives.
+                        def _apply_boost():
+                            import time as _t
+                            for _ in range(20):  # up to ~10 s
+                                if self.audio_router.set_application_sink_input_volume("librespot", boost):
+                                    return
+                                _t.sleep(0.5)
+                        threading.Thread(target=_apply_boost, daemon=True).start()
+                except Exception as e:
+                    print(f"[StateMachine] Error applying Spotify gain boost: {e}")
                 # Update display
                 try:
                     self.display.show_playlist_cover(playlist)

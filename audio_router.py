@@ -220,6 +220,46 @@ class AudioRouter:
     # Bluetooth profile helper
     # ------------------------------------------------------------------
 
+    def set_application_sink_input_volume(self, name_contains, percent):
+        """Set the PipeWire sink-input volume for the first sink-input whose
+        application.name contains *name_contains* (case-insensitive).
+
+        This is the mechanism used to close the loudness gap between
+        quietly-mastered Spotify audiobook content and hot webradio streams:
+        librespot gets a large downstream boost (>100%) on its stream, which
+        PipeWire persists via module-stream-restore so it survives both
+        raspotify restarts and Pi reboots. The state machine calls this
+        from _activate_mode() whenever Spotify becomes the active mode, so
+        a fresh librespot sink-input (created on every new track/session)
+        is immediately brought up to the configured level.
+
+        *percent* is an integer like 250 meaning 250% (PipeWire supports up
+        to ~400%).
+
+        Returns True if a matching sink-input was found and its volume was
+        set, False otherwise.
+        """
+        needle = name_contains.lower()
+        with self.pulse_lock:
+            try:
+                pulse = self._get_pulse()
+                for si in pulse.sink_input_list():
+                    app = (si.proplist.get("application.name") or "").lower()
+                    if needle in app:
+                        # pulsectl uses 0.0-1.0-based volume; PulseAudio's
+                        # 100% = 65536 = 1.0, 250% = 163840 = 2.5.
+                        target = percent / 100.0
+                        channels = len(si.volume.values)
+                        new_vol = type(si.volume)([target] * channels)
+                        pulse.sink_input_volume_set(si.index, new_vol)
+                        print(f"[audio_router] Set {app} sink-input volume to {percent}%")
+                        return True
+            except Exception as e:
+                print(f"[audio_router] Error setting sink-input volume: {e}")
+            finally:
+                self._close_pulse()
+        return False
+
     def set_bluetooth_a2dp_profile(self):
         """Ensure Bluetooth card uses A2DP sink profile for audio playback."""
         with self.pulse_lock:
