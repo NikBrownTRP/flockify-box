@@ -19,7 +19,7 @@ CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "
 VOLUME_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "volume")
 IMAGE_CACHE_MAX = 12
 
-VOLUME_OVERLAY_DURATION_SEC = 1.0
+VOLUME_OVERLAY_DURATION_SEC = 2.0
 VOLUME_OVERLAY_OPACITY = 0.85  # 0..1 — how opaque the cartoon overlay sits over the cover
 TE_ORANGE = (255, 92, 0)
 
@@ -411,11 +411,59 @@ class DisplayManager:
             alpha = int(255 * VOLUME_OVERLAY_OPACITY)
             overlay.putalpha(alpha)
             base.alpha_composite(overlay)
+
+            # Draw a thin progress bar near the bottom showing exact volume.
+            # This gives per-click feedback even when the cartoon frame
+            # itself doesn't change (the cartoon only has 5 discrete states).
+            self._draw_volume_progress_bar(base, ratio, at_max)
+
             return base.convert("RGB")
         except Exception as e:
             logger.warning("Could not load volume frame %s: %s", frame_path, e)
             # Fallback: solid dark canvas so we still indicate "something happened"
             return Image.new("RGB", (DISPLAY_WIDTH, DISPLAY_HEIGHT), (18, 22, 40))
+
+    def _draw_volume_progress_bar(self, image, ratio, at_max):
+        """Draw a thin horizontal volume bar near the bottom of the image.
+
+        The bar fills left-to-right proportional to ratio. White when below
+        max, orange when at max. Includes a subtle dark drop shadow so it
+        stays readable on any cover background.
+        """
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(image)
+
+        # Geometry
+        margin_x = 24
+        bar_y = image.height - 28
+        bar_h = 7
+        bar_x0 = margin_x
+        bar_x1 = image.width - margin_x
+
+        # Drop shadow (1px below)
+        draw.rounded_rectangle(
+            [bar_x0, bar_y + 1, bar_x1, bar_y + bar_h + 1],
+            radius=bar_h // 2,
+            fill=(0, 0, 0, 140),
+        )
+        # Track — translucent dark with white outline
+        draw.rounded_rectangle(
+            [bar_x0, bar_y, bar_x1, bar_y + bar_h],
+            radius=bar_h // 2,
+            fill=(20, 20, 30, 200),
+            outline=(255, 255, 255, 230),
+            width=1,
+        )
+
+        # Fill
+        if ratio > 0:
+            fill_w = max(bar_h, int((bar_x1 - bar_x0) * ratio))
+            fill_color = TE_ORANGE + (255,) if at_max else (255, 255, 255, 240)
+            draw.rounded_rectangle(
+                [bar_x0, bar_y, bar_x0 + fill_w, bar_y + bar_h],
+                radius=bar_h // 2,
+                fill=fill_color,
+            )
 
     def cleanup(self):
         """Clean up display resources."""
