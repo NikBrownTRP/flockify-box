@@ -37,7 +37,29 @@ Each button connects its GPIO pin to GND when pressed. Internal pull-up resistor
 | Prev Track | 26 | 37 | Go to previous track (Spotify only) |
 | Next Playlist | 12 | 32 | Cycle through playlists + web radio |
 
-**Pins to avoid** (already in use): GPIO 8, 9, 10, 11 (SPI), GPIO 18 (display backlight PWM), GPIO 25 (display DC), GPIO 27 (display RST).
+**Pins to avoid** (already in use): GPIO 8, 9, 10, 11 (SPI display), GPIO 13 (display backlight PWM), GPIO 25 (display DC), GPIO 27 (display RST), GPIO 18, 19, 21 (I²S → MAX98357A amp), GPIO 5, 6, 12, 16, 26 (buttons).
+
+### MAX98357A Amp Wiring (I²S)
+
+| Amp Pin | GPIO | Header Pin | Notes |
+|---------|------|------------|-------|
+| VIN     | 5V   | 2          | Use pin 2, keep pin 4 free |
+| GND     | GND  | 6          | |
+| BCLK    | 18   | 12         | I²S bit clock |
+| LRC     | 19   | 35         | I²S word-select |
+| DIN     | 21   | 40         | I²S data in |
+| SD/GAIN | —    | —          | Leave NC for default 9 dB gain |
+
+Enable the DAC overlay in `/boot/firmware/config.txt`:
+
+```
+dtparam=i2s=on
+dtoverlay=hifiberry-dac
+# Optional — disable onboard HDMI audio so PipeWire picks the DAC as default:
+# dtparam=audio=off
+```
+
+Reboot; the DAC will appear as an ALSA card (e.g. `snd_rpi_hifiberry_dac`) and PipeWire will expose it as a sink. Flockify's existing audio router treats any non-Bluetooth sink as "wired", so the amp will be used automatically whenever Bluetooth isn't connected.
 
 ### SPI Display Wiring
 
@@ -248,7 +270,7 @@ python3 flockify.py --no-hardware
 
 ### Display not working
 - Verify SPI is enabled: `ls /dev/spidev0.*` (should show `spidev0.0`)
-- Check wiring: DC→GPIO25, RST→GPIO27, BL→GPIO18
+- Check wiring: DC→GPIO25, RST→GPIO27, BL→GPIO13
 - Test display separately: `python3 -c "from lib.spi_display_lib import SPIDisplay; d = SPIDisplay(); d.init(); d.clear((255,0,0))"`
 
 ## Auto-update from GitHub

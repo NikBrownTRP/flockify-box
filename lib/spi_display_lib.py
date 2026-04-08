@@ -17,17 +17,19 @@ class SPIDisplay:
     is 240x285. Calibrated empirically with a row-marker test pattern.
     """
 
-    def __init__(self, width=240, height=285, dc_pin=25, rst_pin=27, bl_pin=18,
+    def __init__(self, width=240, height=285, dc_pin=25, rst_pin=27, bl_pin=13,
                  spi_bus=0, spi_device=0, spi_speed=10000000):
         """
         Initialize display
-        
+
         Args:
             width: Display width in pixels (default: 240)
             height: Display height in pixels (default: 280)
             dc_pin: Data/Command GPIO pin (default: 25)
             rst_pin: Reset GPIO pin (default: 27)
-            bl_pin: Backlight GPIO pin (default: 18)
+            bl_pin: Backlight GPIO pin (default: 13 — moved from 18 to free
+                    up GPIO18 for I²S BCLK to the MAX98357A amp. GPIO13
+                    also supports hardware PWM on the Pi 5.)
             spi_bus: SPI bus number (default: 0)
             spi_device: SPI device number (default: 0)
             spi_speed: SPI clock speed in Hz (default: 10000000)

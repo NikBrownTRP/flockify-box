@@ -142,6 +142,26 @@ raspi-config nonint do_spi 0
 echo "    SPI enabled."
 
 # =============================================================================
+# Step 8b: Enable I²S DAC (MAX98357A)
+# =============================================================================
+echo ">>> Step 8b: Enabling I²S DAC overlay for MAX98357A..."
+
+CONFIG_TXT="/boot/firmware/config.txt"
+if [ ! -f "$CONFIG_TXT" ]; then
+    CONFIG_TXT="/boot/config.txt"
+fi
+
+if [ -f "$CONFIG_TXT" ]; then
+    # Append I²S + hifiberry-dac overlay (MAX98357A presents as hifiberry-dac).
+    # Idempotent — only add if the line is not already present.
+    grep -q '^dtparam=i2s=on' "$CONFIG_TXT" || echo 'dtparam=i2s=on' >> "$CONFIG_TXT"
+    grep -q '^dtoverlay=hifiberry-dac' "$CONFIG_TXT" || echo 'dtoverlay=hifiberry-dac' >> "$CONFIG_TXT"
+    echo "    I²S DAC overlay enabled (will take effect on next reboot)."
+else
+    echo "    WARNING: could not find config.txt — enable dtoverlay=hifiberry-dac manually."
+fi
+
+# =============================================================================
 # Step 9: Set hostname
 # =============================================================================
 echo ">>> Step 9: Setting hostname..."
