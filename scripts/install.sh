@@ -54,12 +54,23 @@ if [ -f "$RASPOTIFY_CONF" ]; then
     # Update or add configuration values
     sed -i 's/^#*LIBRESPOT_NAME=.*/LIBRESPOT_NAME="flockifybox"/' "$RASPOTIFY_CONF"
     sed -i 's/^#*LIBRESPOT_BITRATE=.*/LIBRESPOT_BITRATE="96"/' "$RASPOTIFY_CONF"
-    sed -i 's/^#*LIBRESPOT_BACKEND=.*/LIBRESPOT_BACKEND="pulseaudio"/' "$RASPOTIFY_CONF"
+    # Use ALSA backend (PipeWire's ALSA compat layer routes to BT/wired sink)
+    sed -i 's/^#*LIBRESPOT_BACKEND=.*/LIBRESPOT_BACKEND="alsa"/' "$RASPOTIFY_CONF"
+    # Use the default ALSA device, which on PipeWire systems routes to the
+    # current default sink
+    sed -i '/^#*LIBRESPOT_DEVICE=/d' "$RASPOTIFY_CONF"
+    # Disable raspotify's default no-credential-cache flag — we WANT credentials
+    # cached so the device persistently logs in across reboots
+    sed -i '/^LIBRESPOT_DISABLE_CREDENTIAL_CACHE=/d' "$RASPOTIFY_CONF"
 
     # If the values weren't found and replaced, append them
     grep -q '^LIBRESPOT_NAME=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_NAME="flockifybox"' >> "$RASPOTIFY_CONF"
     grep -q '^LIBRESPOT_BITRATE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BITRATE="96"' >> "$RASPOTIFY_CONF"
-    grep -q '^LIBRESPOT_BACKEND=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BACKEND="pulseaudio"' >> "$RASPOTIFY_CONF"
+    grep -q '^LIBRESPOT_BACKEND=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BACKEND="alsa"' >> "$RASPOTIFY_CONF"
+    grep -q '^LIBRESPOT_DEVICE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_DEVICE="default"' >> "$RASPOTIFY_CONF"
+    # Enable OAuth so librespot uses cached credentials at startup (must be set
+    # for librespot to actively log in instead of waiting in discovery mode)
+    grep -q '^LIBRESPOT_ENABLE_OAUTH=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_ENABLE_OAUTH=' >> "$RASPOTIFY_CONF"
 else
     echo "WARNING: Raspotify config not found at $RASPOTIFY_CONF"
 fi
@@ -241,7 +252,21 @@ echo "Next steps:"
 echo "1. Reboot: sudo reboot"
 echo "2. After reboot, open http://flockifybox.local:5000"
 echo "3. Go to Settings and connect your Spotify account"
+echo "   IMPORTANT: log into Spotify in your browser as the SAME account"
+echo "   the music box should use (e.g. your child's account) before clicking"
+echo "   'Connect to Spotify'."
 echo "4. Add playlists on the Playlists page"
+echo ""
+echo "5. ONE-TIME OAUTH FOR RASPOTIFY (required for auto-resume on boot)"
+echo "   Run: sudo bash $INSTALL_DIR/scripts/spotify-oauth.sh"
+echo "   This logs librespot into Spotify so the device persistently"
+echo "   appears in your account's Spotify Connect device list."
+echo ""
+echo "6. NOTE about the Spotify Developer App:"
+echo "   If your music box uses a different Spotify account than the one"
+echo "   that owns the Developer App, you must add that account to the app's"
+echo "   User Management allowlist on https://developer.spotify.com/dashboard"
+echo "   (Apps in Development Mode only allow whitelisted users.)"
 echo ""
 echo "To start manually: sudo systemctl start flockify"
 echo "To view logs: journalctl -u flockify -f"
