@@ -12,7 +12,7 @@
     "url": "https://stream.radino.at/radino",
     "image_path": "images/radino.png"
   },
-  "max_volume": 80,
+  "max_volume": 60,
   "volume_step": 5,
   "state": {
     "mode_index": 0,
