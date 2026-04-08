@@ -8,6 +8,13 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/flockify
 ExecStart=/home/pi/flockify/venv/bin/python3 /home/pi/flockify/flockify.py
+# After flockify exits, force the display backlight pad (GPIO13)
+# to output-low with pull-down enabled at the RP1 pad-control
+# register level. This survives the rest of poweroff.target where
+# lgpio's in-process claim would otherwise get clobbered as the
+# kernel resets pin states during halt, leaving the backlight on
+# over the lingering 3.3 V rail during soft-off (J2 button).
+ExecStopPost=-/usr/bin/pinctrl set 13 op dl pd
 Restart=on-failure
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
