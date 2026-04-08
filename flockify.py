@@ -268,13 +268,30 @@ def main():
     # ------------------------------------------------------------------
     # 11. Resume state
     # ------------------------------------------------------------------
+    # Respect the time schedule: if we booted into the 'night' period,
+    # the scheduler's _apply_period(night) has already paused playback
+    # and shown the sleep screen — resuming would trample both.
     try:
-        with state_machine.lock:
-            state_machine._activate_mode()
-        # Set initial Bluetooth icon state
-        current_output = audio_router.get_active_output()
-        display_manager.set_bluetooth_active(current_output == "bluetooth")
-        print("[flockify] Resumed playback from saved state")
+        in_night = (
+            time_scheduler is not None
+            and time_scheduler.get_current_period() == 'night'
+        )
+        if in_night:
+            print("[flockify] Booted during night period — skipping resume (sleeping)")
+        else:
+            with state_machine.lock:
+                state_machine._activate_mode()
+            # Set initial Bluetooth icon state
+            current_output = audio_router.get_active_output()
+            display_manager.set_bluetooth_active(current_output == "bluetooth")
+            # If we booted into quiet period, the scheduler has already
+            # capped max volume; _activate_mode above re-pushed the stored
+            # volume, which may exceed the cap. Re-apply quiet clamp.
+            if time_scheduler is not None and time_scheduler.get_current_period() == 'quiet':
+                quiet_max = time_scheduler.get_effective_max_volume()
+                if state_machine.volume > quiet_max:
+                    state_machine.set_volume(quiet_max)
+            print("[flockify] Resumed playback from saved state")
     except Exception as e:
         print(f"[flockify] WARNING: Failed to resume state: {e}")
 
