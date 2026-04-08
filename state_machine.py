@@ -302,12 +302,21 @@ class StateMachine:
             print(f"[StateMachine] Error activating mode: {e}")
 
     def _apply_volume(self, volume):
-        """Apply volume to the currently active player."""
+        """Apply volume to the currently active player.
+
+        The user-facing volume knob runs 0-100 so it feels natural, but the
+        actual level delivered to the player is scaled by
+        `max_output_percent` (default 60) so that knob=100 corresponds to a
+        kid-safe ceiling. This is a global gain cap, distinct from
+        `max_volume` which is the knob's upper bound.
+        """
+        ceiling = int(self.config.get('max_output_percent', 60))
+        scaled = max(0, min(100, int(round(volume * ceiling / 100))))
         try:
             if self.is_spotify_mode():
-                self.spotify.set_volume(volume)
+                self.spotify.set_volume(scaled)
             else:
-                self.webradio.set_volume(volume)
+                self.webradio.set_volume(scaled)
         except Exception as e:
             print(f"[StateMachine] Error applying volume: {e}")
 
