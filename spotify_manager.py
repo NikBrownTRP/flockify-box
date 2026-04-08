@@ -1,3 +1,4 @@
+import subprocess
 import time
 
 import requests
@@ -153,6 +154,27 @@ class SpotifyManager:
             print(f"[SpotifyManager] OAuth callback failed: {e}")
             return False
 
+    def _recover_raspotify(self):
+        """Attempt a `sudo systemctl restart raspotify` to unstick librespot.
+
+        Requires a passwordless sudoers entry (installed by scripts/install.sh
+        as /etc/sudoers.d/flockify-raspotify). Safe no-op if sudo refuses.
+        Returns True on success, False otherwise.
+        """
+        try:
+            result = subprocess.run(
+                ["sudo", "-n", "systemctl", "restart", "raspotify"],
+                capture_output=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                print("[SpotifyManager] Restarted raspotify to clear stuck state")
+                return True
+            print(f"[SpotifyManager] raspotify restart failed: {result.stderr.decode().strip()}")
+        except Exception as e:
+            print(f"[SpotifyManager] raspotify restart error: {e}")
+        return False
+
     def find_device(self, retries=3, delay=1):
         """Discover Raspotify device by name from config.
 
@@ -203,11 +225,21 @@ class SpotifyManager:
             return False
 
         last_error = None
+        recovered = False
         for attempt in range(attempts):
             try:
                 device_id = self.find_device()
                 if not device_id:
                     last_error = "no device"
+                    # Halfway through attempts, kick raspotify once. The
+                    # cold-boot zombie-zeroconf state only clears after a
+                    # fresh librespot restart long enough after the network
+                    # has warmed up. This is the self-heal path.
+                    if not recovered and attempt >= (attempts // 2):
+                        recovered = self._recover_raspotify()
+                        if recovered:
+                            time.sleep(8)  # give librespot time to reregister
+                            continue
                     time.sleep(delay)
                     continue
                 self.sp.start_playback(device_id=device_id, context_uri=uri)

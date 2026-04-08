@@ -82,6 +82,9 @@ echo "    Configuring raspotify to use user PulseAudio..."
 loginctl enable-linger nbrown || echo "    (linger enable failed — continuing)"
 mkdir -p /etc/systemd/system/raspotify.service.d
 cp "$PROJECT_DIR/systemd/raspotify-override.conf" /etc/systemd/system/raspotify.service.d/override.conf
+# Self-heal hook: let flockify restart raspotify without a password so
+# spotify_manager._recover_raspotify() can unstick the cold-boot zombie.
+install -m 0440 -o root -g root "$PROJECT_DIR/systemd/flockify-raspotify.sudoers" /etc/sudoers.d/flockify-raspotify
 systemctl daemon-reload
 
 systemctl restart raspotify
