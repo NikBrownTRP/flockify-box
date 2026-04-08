@@ -153,12 +153,14 @@ class SpotifyManager:
             print(f"[SpotifyManager] OAuth callback failed: {e}")
             return False
 
-    def find_device(self, retries=10, delay=2):
+    def find_device(self, retries=3, delay=1):
         """Discover Raspotify device by name from config.
 
-        Raspotify typically takes 10-20 seconds after starting before it
-        publishes itself to the Spotify API, so we retry generously to
-        handle the startup race at boot.
+        Defaults kept small (3x1s = 3s max) so that button presses don't
+        block the state machine for 20 s when Spotify is temporarily
+        unreachable. Boot-time resume can pass a larger retries value
+        if needed — raspotify's `Restart=on-failure` drop-in now handles
+        the transient-AP-failure case that used to require long waits.
 
         Returns device_id or None.
         """
