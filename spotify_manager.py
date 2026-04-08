@@ -187,23 +187,50 @@ class SpotifyManager:
 
         return None
 
-    def play_playlist(self, uri):
-        """Start playlist on Raspotify device. Returns True/False."""
+    def play_playlist(self, uri, attempts=5, delay=2):
+        """Start playlist on Raspotify device.
+
+        Raspotify publishes its device to the Web API before it is actually
+        ready to receive playback commands — the first start_playback call
+        after a fresh boot commonly returns HTTP 404 ("device not found")
+        even though devices() listed it a moment earlier. We retry the
+        whole find-device + start-playback dance on any 404 until it
+        takes, which is what makes auto-resume survive a power cycle.
+
+        Returns True/False.
+        """
         if not self.sp:
             return False
-        try:
-            device_id = self.find_device()
-            if not device_id:
-                print("[SpotifyManager] No device found for playback")
+
+        last_error = None
+        for attempt in range(attempts):
+            try:
+                device_id = self.find_device()
+                if not device_id:
+                    last_error = "no device"
+                    time.sleep(delay)
+                    continue
+                self.sp.start_playback(device_id=device_id, context_uri=uri)
+                if attempt > 0:
+                    print(f"[SpotifyManager] Playback started on attempt {attempt + 1}")
+                return True
+            except spotipy.exceptions.SpotifyException as e:
+                last_error = str(e)
+                # 404 = device not yet ready; 502/503 = Spotify hiccup — retry.
+                if getattr(e, "http_status", None) in (404, 502, 503):
+                    # Forget the stale device id so find_device re-resolves
+                    self._device_id = None
+                    time.sleep(delay)
+                    continue
+                print(f"[SpotifyManager] Error starting playlist: {e}")
                 return False
-            self.sp.start_playback(device_id=device_id, context_uri=uri)
-            return True
-        except spotipy.exceptions.SpotifyException as e:
-            print(f"[SpotifyManager] Error starting playlist: {e}")
-            return False
-        except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error starting playlist: {e}")
-            return False
+            except requests.exceptions.ConnectionError as e:
+                last_error = str(e)
+                time.sleep(delay)
+                continue
+
+        print(f"[SpotifyManager] play_playlist gave up after {attempts} attempts: {last_error}")
+        return False
 
     def next_track(self):
         """Skip to next track. Returns True/False."""

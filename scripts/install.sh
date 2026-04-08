@@ -162,10 +162,13 @@ echo "    User added to groups."
 echo ">>> Step 11: Installing systemd service..."
 
 cp "$INSTALL_DIR/systemd/flockify.service" /etc/systemd/system/
+cp "$INSTALL_DIR/systemd/flockify-boot-splash.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable flockify.service
+systemctl enable flockify-boot-splash.service
 
 echo "    Systemd service installed and enabled."
+echo "    Boot splash service installed (shows image early in boot)."
 
 # =============================================================================
 # Step 11b: Install low power mode service

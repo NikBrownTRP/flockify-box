@@ -1,0 +1,27 @@
+[Unit]
+Description=Flockify Box Boot Splash (early SPI display image)
+# Run as early as possible — we only need the kernel, udev and SPI.
+# Explicitly ordered Before=flockify.service so the splash appears
+# long before the main Python app finishes loading. flockify.py will
+# take over the display when it is ready.
+DefaultDependencies=no
+After=systemd-udev-settle.service local-fs.target
+Before=flockify.service sysinit.target
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/flockify
+ExecStart=/home/pi/flockify/venv/bin/python3 /home/pi/flockify/scripts/show_boot_splash.py
+# SPI/GPIO access requires the user to be in gpio + spi groups (the
+# install script already adds them for flockify). A single failure
+# must not delay boot — the main app will still draw its own splash.
+TimeoutStartSec=15
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=sysinit.target
