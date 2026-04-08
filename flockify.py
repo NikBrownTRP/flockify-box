@@ -241,7 +241,7 @@ def main():
     # ------------------------------------------------------------------
     audio_router.start_monitoring(
         callback=state_machine.on_audio_output_changed,
-        interval=10,
+        interval=5,
     )
 
     # Start time scheduler
