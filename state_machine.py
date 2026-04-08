@@ -125,8 +125,12 @@ class StateMachine:
             self.volume = min(self.volume + step, max_vol)
             self._apply_volume(self.volume)
             self._save_state()
-        self._notify_activity()
+        # Render overlay FIRST (slow SPI write happens while display may
+        # still be dimmed), THEN wake the backlight. The user sees the
+        # bright overlay appear in one snap instead of: bright cover →
+        # delay → bright overlay.
         self._show_volume_overlay()
+        self._notify_activity()
 
     def volume_down(self):
         if self._is_locked():
@@ -136,8 +140,8 @@ class StateMachine:
             self.volume = max(self.volume - step, 0)
             self._apply_volume(self.volume)
             self._save_state()
-        self._notify_activity()
         self._show_volume_overlay()
+        self._notify_activity()
 
     def set_volume(self, level):
         if self._is_locked():
@@ -147,8 +151,8 @@ class StateMachine:
             self.volume = max(0, min(int(level), max_vol))
             self._apply_volume(self.volume)
             self._save_state()
-        self._notify_activity()
         self._show_volume_overlay()
+        self._notify_activity()
 
     # ------------------------------------------------------------------
     # Track navigation

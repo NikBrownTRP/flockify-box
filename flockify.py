@@ -123,7 +123,12 @@ def main():
             print("[flockify] Running without hardware display")
 
         # Show splash image
-        splash_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "radino.png")
+        # Prefer the boot_tiger image if present (a custom AI-generated startup
+        # graphic). Falls back to radino.png so older installs still work.
+        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
+        boot_tiger = os.path.join(images_dir, "boot_tiger.png")
+        radino = os.path.join(images_dir, "radino.png")
+        splash_path = boot_tiger if os.path.isfile(boot_tiger) else radino
         display_manager.show_splash(splash_path)
         print("[flockify] Display initialized")
     except Exception as e:
