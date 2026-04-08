@@ -5,12 +5,15 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-# Pin all CPU cores to the powersave governor (minimum frequency unless load demands more)
-ExecStart=/bin/bash -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo powersave > $gov; done'
-# Disable HDMI output (saves ~150mW, this is a headless music box)
-ExecStart=/usr/bin/vcgencmd display_power 0
-# Enable WiFi power saving (small savings, harmless for web UI polling)
-ExecStart=-/usr/sbin/iw dev wlan0 set power_save on
+# Pin all CPU cores to the powersave governor (minimum frequency unless load demands more).
+# Leading '-' makes the step non-fatal so the service never enters failed state even if a
+# single optimisation can't be applied on this particular Pi/kernel combination.
+ExecStart=-/bin/bash -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo powersave > $gov; done'
+# Enable WiFi power saving if the Pi is using WiFi and iw is installed. No-op otherwise.
+ExecStart=-/bin/sh -c 'command -v iw >/dev/null && ip link show wlan0 >/dev/null 2>&1 && iw dev wlan0 set power_save on || true'
+# Note: on Raspberry Pi 5 / Debian Bookworm+, 'vcgencmd display_power 0' has been removed
+# from the firmware. HDMI power management is handled automatically by the kernel when
+# nothing is driving a display, so no explicit disable is needed for headless operation.
 RemainAfterExit=yes
 
 [Install]
