@@ -288,7 +288,9 @@ class StateMachine:
                 try:
                     url = webradio_cfg.get('url', '')
                     self.webradio.play_station(url)
-                    self.webradio.set_volume(self.volume)
+                    # Route through _apply_volume so the ceiling scale and
+                    # webradio-specific trim are both applied.
+                    self._apply_volume(self.volume)
                 except Exception as e:
                     print(f"[StateMachine] Error starting webradio: {e}")
                 # Update display
@@ -316,7 +318,13 @@ class StateMachine:
             if self.is_spotify_mode():
                 self.spotify.set_volume(scaled)
             else:
-                self.webradio.set_volume(scaled)
+                # Webradio streams are mastered hotter than the Spotify
+                # content on this box, so we knock a further percentage
+                # off mpv's volume to match perceived loudness between
+                # modes. Tunable via `webradio_volume_scale` (float 0-1).
+                wr_scale = float(self.config.get('webradio_volume_scale', 0.9))
+                wr_vol = max(0, min(100, int(round(scaled * wr_scale))))
+                self.webradio.set_volume(wr_vol)
         except Exception as e:
             print(f"[StateMachine] Error applying volume: {e}")
 
