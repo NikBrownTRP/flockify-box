@@ -239,26 +239,38 @@ class AudioRouter:
         Returns True if a matching sink-input was found and its volume was
         set, False otherwise.
         """
+        import subprocess
         needle = name_contains.lower()
+        target_index = None
         with self.pulse_lock:
             try:
                 pulse = self._get_pulse()
                 for si in pulse.sink_input_list():
                     app = (si.proplist.get("application.name") or "").lower()
                     if needle in app:
-                        # pulsectl uses 0.0-1.0-based volume; PulseAudio's
-                        # 100% = 65536 = 1.0, 250% = 163840 = 2.5.
-                        target = percent / 100.0
-                        channels = len(si.volume.values)
-                        new_vol = type(si.volume)([target] * channels)
-                        pulse.sink_input_volume_set(si.index, new_vol)
-                        print(f"[audio_router] Set {app} sink-input volume to {percent}%")
-                        return True
+                        target_index = si.index
+                        break
             except Exception as e:
-                print(f"[audio_router] Error setting sink-input volume: {e}")
+                print(f"[audio_router] Error enumerating sink-inputs: {e}")
             finally:
                 self._close_pulse()
-        return False
+        if target_index is None:
+            return False
+        # Use pactl — pulsectl's PulseVolumeInfo uses a logarithmic mapping
+        # that doesn't match percent values directly (we observed "250" ->
+        # "153%" in practice). pactl takes percentages literally.
+        try:
+            subprocess.run(
+                ["pactl", "set-sink-input-volume", str(target_index), f"{percent}%"],
+                check=True,
+                capture_output=True,
+                timeout=3,
+            )
+            print(f"[audio_router] Set {name_contains} sink-input #{target_index} volume to {percent}%")
+            return True
+        except Exception as e:
+            print(f"[audio_router] pactl set-sink-input-volume failed: {e}")
+            return False
 
     def set_bluetooth_a2dp_profile(self):
         """Ensure Bluetooth card uses A2DP sink profile for audio playback."""
