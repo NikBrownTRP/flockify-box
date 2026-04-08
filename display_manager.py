@@ -117,7 +117,10 @@ class DisplayManager:
                 image_bytes = image_data_or_url
 
             image = Image.open(io.BytesIO(image_bytes))
-            image = self._fit_to_display(image)
+            # Save the ORIGINAL image (preserving aspect ratio).
+            # show_playlist_cover will letterbox it to display dimensions
+            # at draw time. This way the cache survives display size changes
+            # and the original aspect ratio is never lost.
 
             os.makedirs(CACHE_DIR, exist_ok=True)
             index = playlist_dict.get("index", 0)
@@ -251,9 +254,11 @@ class DisplayManager:
 
             bt_icon = bt_icon.convert("RGBA").resize((24, 24), Image.Resampling.LANCZOS)
 
-            # Position at top-right corner with small margin
-            x = composited.width - bt_icon.width - 4
-            y = 4
+            # Position at top-right corner. Use generous inset so the icon
+            # is not clipped by the rounded display bezel.
+            margin = 16
+            x = composited.width - bt_icon.width - margin
+            y = margin
 
             composited.paste(bt_icon, (x, y), bt_icon)
 

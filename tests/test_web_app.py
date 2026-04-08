@@ -102,6 +102,23 @@ def test_parse_spotify_url_empty():
     assert result is None
 
 
+def test_parse_spotify_url_intl_locale():
+    """URLs from localised Spotify clients have a locale prefix."""
+    result = _parse_spotify_url("https://open.spotify.com/intl-de/playlist/ABC123?si=xxx&pi=yyy")
+    assert result == "spotify:playlist:ABC123"
+
+
+def test_parse_spotify_url_short_locale():
+    result = _parse_spotify_url("https://open.spotify.com/de/playlist/ABC123")
+    assert result == "spotify:playlist:ABC123"
+
+
+def test_parse_spotify_url_legacy_user_uri():
+    """Legacy spotify:user:foo:playlist:ID format."""
+    result = _parse_spotify_url("spotify:user:johndoe:playlist:ABC123")
+    assert result == "spotify:playlist:ABC123"
+
+
 # ------------------------------------------------------------------
 # Page route tests
 # ------------------------------------------------------------------

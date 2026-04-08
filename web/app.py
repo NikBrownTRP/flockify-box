@@ -41,21 +41,28 @@ def _parse_spotify_url(url):
 
     Accepts:
       - https://open.spotify.com/playlist/37i9dQZF1DX6z20IXmBjWI?si=...
+      - https://open.spotify.com/intl-de/playlist/37i9dQZF1DX6z20IXmBjWI?si=...
+      - https://open.spotify.com/de/playlist/37i9dQZF1DX6z20IXmBjWI
       - spotify:playlist:37i9dQZF1DX6z20IXmBjWI
+      - spotify:user:foo:playlist:37i9dQZF1DX6z20IXmBjWI (legacy)
 
     Returns 'spotify:playlist:<id>' or None on failure.
     """
     url = url.strip()
+    if not url:
+        return None
 
-    # Already a URI
-    if url.startswith('spotify:playlist:'):
-        return url
+    # URI forms (handles legacy spotify:user:xxx:playlist:ID too)
+    uri_match = re.search(r'spotify:(?:user:[^:]+:)?playlist:([A-Za-z0-9]+)', url)
+    if uri_match:
+        return f'spotify:playlist:{uri_match.group(1)}'
 
-    # URL form
+    # URL form — use re.search instead of re.match so locale prefixes
+    # like /intl-de or /de don't break parsing
     parsed = urlparse(url)
-    match = re.match(r'^/playlist/([A-Za-z0-9]+)', parsed.path)
-    if match:
-        return f'spotify:playlist:{match.group(1)}'
+    path_match = re.search(r'/playlist/([A-Za-z0-9]+)', parsed.path)
+    if path_match:
+        return f'spotify:playlist:{path_match.group(1)}'
 
     return None
 
