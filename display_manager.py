@@ -20,6 +20,7 @@ VOLUME_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", 
 IMAGE_CACHE_MAX = 12
 
 VOLUME_OVERLAY_DURATION_SEC = 1.0
+VOLUME_OVERLAY_OPACITY = 0.85  # 0..1 — how opaque the cartoon overlay sits over the cover
 TE_ORANGE = (255, 92, 0)
 
 # Volume frame filenames in ascending order. The right frame is chosen
@@ -374,30 +375,43 @@ class DisplayManager:
             logger.error("Failed to dismiss volume overlay: %s", e)
 
     def _compose_volume_overlay(self, base_image, ratio, at_max):
-        """Return the kid-friendly cartoon-speaker frame matching this volume.
+        """Return the cover image with the cartoon-speaker frame composited
+        on top at VOLUME_OVERLAY_OPACITY.
 
         Loads one of 5 pre-rendered PNG frames from images/volume/ based on
-        the volume ratio. Falls back to a solid black canvas if the asset
-        is missing for any reason. The base_image is replaced entirely
-        for one second so the kid focuses on the volume animation.
+        the volume ratio and blends it over the current playlist cover so
+        the cover stays subtly visible behind the cartoon. Falls back to a
+        solid dark canvas if the asset is missing.
         """
         # Pick the right frame index (0..4)
         if at_max:
             frame_idx = 4
         else:
-            # Map ratio [0..1) to index [0..4)
             frame_idx = min(3, int(ratio * 4))
             if ratio == 0:
                 frame_idx = 0
 
         frame_path = os.path.join(VOLUME_DIR, VOLUME_FRAMES[frame_idx])
         try:
-            img = self._load_image(frame_path)
-            if img is None:
+            frame = self._load_image(frame_path)
+            if frame is None:
                 raise FileNotFoundError(frame_path)
-            # Letterbox the asset into the display dimensions, preserving
-            # the cartoon's aspect ratio.
-            return self._fit_to_display(img.convert("RGB"))
+            # Letterbox the cartoon to match display dimensions
+            fitted = self._fit_to_display(frame.convert("RGB"))
+
+            # Start from the cover (with BT icon if active) so the
+            # base layer is whatever the user was looking at
+            if self.bluetooth_active:
+                base = self._composite_bt_icon(base_image).convert("RGBA")
+            else:
+                base = base_image.copy().convert("RGBA")
+
+            # Apply uniform alpha to the cartoon frame, then composite
+            overlay = fitted.convert("RGBA")
+            alpha = int(255 * VOLUME_OVERLAY_OPACITY)
+            overlay.putalpha(alpha)
+            base.alpha_composite(overlay)
+            return base.convert("RGB")
         except Exception as e:
             logger.warning("Could not load volume frame %s: %s", frame_path, e)
             # Fallback: solid dark canvas so we still indicate "something happened"
