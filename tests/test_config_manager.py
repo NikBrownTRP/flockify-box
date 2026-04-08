@@ -110,6 +110,36 @@ class TestConfigManagerState:
         finally:
             os.chdir(orig_cwd)
 
+    def test_save_state_does_not_clobber_external_changes(self, config_manager):
+        """If another process modifies config.json, save_state must
+        merge — only updating the 'state' field — instead of writing the
+        whole stale in-memory config back."""
+        # Simulate flockify having stale playlist data in memory
+        config_manager.config['playlists'] = [{'name': 'STALE', 'uri': 'x', 'cover_url': '', 'cover_cached': ''}]
+
+        # Simulate an external process (e.g. migration script) writing
+        # a fresh config to disk with different playlists
+        with open(config_manager.config_path, 'r') as f:
+            disk_cfg = json.load(f)
+        disk_cfg['playlists'] = [{'name': 'FRESH', 'uri': 'y', 'cover_url': '', 'cover_cached': '/new/path.jpg'}]
+        disk_cfg['some_external_field'] = 'preserve_me'
+        with open(config_manager.config_path, 'w') as f:
+            json.dump(disk_cfg, f)
+
+        # Now flockify saves state — this used to clobber the external change
+        config_manager.save_state(mode_index=3, volume=88)
+
+        # Re-read disk and verify both updates landed
+        with open(config_manager.config_path, 'r') as f:
+            final = json.load(f)
+
+        # state was updated
+        assert final['state']['mode_index'] == 3
+        assert final['state']['volume'] == 88
+        # external changes preserved (NOT clobbered by stale in-memory data)
+        assert final['playlists'][0]['name'] == 'FRESH'
+        assert final['some_external_field'] == 'preserve_me'
+
 
 class TestConfigManagerAtomicSave:
     def test_atomic_save(self, config_manager, tmp_dir):

@@ -83,11 +83,26 @@ class ConfigManager:
         self.save()
 
     def save_state(self, mode_index, volume):
-        """Update current playback state and save."""
-        self.config['state'] = {
+        """Update current playback state and save.
+
+        Re-reads the latest config from disk before writing so that
+        external modifications to other fields (e.g. a migration script
+        or an admin command) are not clobbered. Only the 'state' field
+        is overwritten; everything else is preserved as it is on disk.
+        """
+        new_state = {
             'mode_index': mode_index,
             'volume': volume,
         }
+        # Try to merge with the latest disk version first
+        try:
+            with open(self.config_path, 'r') as f:
+                disk_config = json.load(f)
+            disk_config['state'] = new_state
+            self.config = disk_config  # adopt the freshest view
+        except Exception:
+            # Disk read failed for some reason; fall back to in-memory
+            self.config['state'] = new_state
         self.save()
 
     def get_state(self):
