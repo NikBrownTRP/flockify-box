@@ -1,0 +1,27 @@
+#!/bin/sh
+# systemd-shutdown drop-in that runs at the very end of the shutdown
+# sequence (after all services are stopped, immediately before the
+# final reboot(2)/halt(2) syscall).
+#
+# Purpose: force the SPI display backlight pad (GPIO13) to
+# output-drive-low with an internal pull-down enabled, as late as
+# possible in the poweroff sequence. This is the latest point at which
+# user space can still write RP1 pad control registers.
+#
+# Without this, the RP1 chip's pad state resets during the halt
+# transition and the ST7789 display module's internal BL pull-up
+# re-lights the backlight over the 3.3V rail that stays alive during
+# a Pi 5 soft-off (J2 power button).
+#
+# Installed by scripts/install.sh to
+#   /usr/lib/systemd/system-shutdown/flockify-backlight-off
+# Must be mode 0755 and owned by root.
+#
+# systemd-shutdown(8) passes the action ("poweroff", "reboot", "halt",
+# "kexec") as $1 — we only act on anything that cuts power.
+
+case "$1" in
+    poweroff|halt)
+        /usr/bin/pinctrl set 13 op dl pd 2>/dev/null || true
+        ;;
+esac
