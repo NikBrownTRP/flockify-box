@@ -99,13 +99,16 @@ class DisplayManager:
         Download/process and cache a playlist cover image.
 
         Args:
-            playlist_dict: dict with at least 'index' key. 'cover_cached' will be set.
+            playlist_dict: dict with at least a 'uri' key (e.g.
+                'spotify:album:7zU1...' or 'spotify:playlist:5Lx...').
+                'cover_cached' will be set on the dict.
             image_data_or_url: Either a URL string (starting with http) or raw image bytes.
 
         Returns:
             The saved file path, or None on failure.
         """
         import io
+        import re
 
         try:
             if isinstance(image_data_or_url, str) and image_data_or_url.startswith("http"):
@@ -123,8 +126,17 @@ class DisplayManager:
             # and the original aspect ratio is never lost.
 
             os.makedirs(CACHE_DIR, exist_ok=True)
-            index = playlist_dict.get("index", 0)
-            save_path = os.path.join(CACHE_DIR, f"playlist_{index}.jpg")
+            # Name the cache file by the Spotify ID extracted from the URI.
+            # This is unique and immutable per item, so collisions are
+            # impossible across reorders, deletes, and re-adds.
+            uri = playlist_dict.get("uri", "")
+            id_match = re.search(r'spotify:(?:playlist|album):([A-Za-z0-9]+)', uri)
+            if id_match:
+                file_key = id_match.group(1)
+            else:
+                # Fallback for legacy/missing URI: use position
+                file_key = f"unknown_{playlist_dict.get('index', 0)}"
+            save_path = os.path.join(CACHE_DIR, f"cover_{file_key}.jpg")
 
             image.convert("RGB").save(save_path, "JPEG", quality=90)
             playlist_dict["cover_cached"] = save_path

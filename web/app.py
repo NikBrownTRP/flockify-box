@@ -166,12 +166,13 @@ def api_add_playlist():
     # Add to config
     config_manager.add_playlist(name=name, uri=uri, cover_url=cover_url)
 
-    # Cache cover art for the display
+    # Cache cover art for the display. The cache file is keyed by the
+    # Spotify ID (extracted from the URI inside cache_playlist_cover), so
+    # this is collision-free across reorder/delete/re-add cycles.
     new_index = len(config_manager.get('playlists', [])) - 1
     if display_manager and cover_url:
         try:
             playlist_ref = config_manager.get('playlists', [])[new_index]
-            playlist_ref['index'] = new_index
             saved_path = display_manager.cache_playlist_cover(playlist_ref, cover_url)
             if saved_path:
                 playlist_ref['cover_cached'] = saved_path
