@@ -23,12 +23,18 @@ class WebRadioPlayer:
                 self.player.terminate()
             except:
                 pass
-        
+
+        # EBU R128 loudness normalisation — mirrors what librespot's
+        # dynamic normalisation does for Spotify, so webradio tracks
+        # end up at the same ~-14 LUFS target and perceived loudness
+        # stays consistent across both modes.
+        af = "loudnorm=I=-16:TP=-1.5:LRA=11"
+
         if audio_device:
-            self.player = mpv.MPV(audio_device=audio_device)
+            self.player = mpv.MPV(audio_device=audio_device, af=af)
             print(f"Initialized MPV with audio device: {audio_device}")
         else:
-            self.player = mpv.MPV()
+            self.player = mpv.MPV(af=af)
             print("Initialized MPV with default audio")
         
     def _get_pulse(self):
