@@ -60,3 +60,70 @@ def test_cleanup_no_crash():
     # After cleanup, cache and current_image should be cleared
     assert dm.current_image is None
     assert len(dm.image_cache) == 0
+
+
+def test_volume_overlay_no_current_image():
+    """show_volume_overlay should be a no-op if no current image is set."""
+    dm = DisplayManager(None)
+    # Should not crash
+    dm.show_volume_overlay(50, 80)
+    assert dm._volume_timer is None
+
+
+def test_volume_overlay_renders_with_image():
+    """show_volume_overlay should compose and schedule a dismiss timer."""
+    from PIL import Image
+    dm = DisplayManager(None)
+    dm.current_image = Image.new("RGB", (240, 285), (100, 100, 100))
+    dm.show_volume_overlay(40, 80)
+    # A timer should be scheduled
+    assert dm._volume_timer is not None
+    # Cancel before the test ends so we don't leak threads
+    dm._volume_timer.cancel()
+
+
+def test_volume_overlay_at_max():
+    """When volume == max_volume, the overlay still renders without crashing."""
+    from PIL import Image
+    dm = DisplayManager(None)
+    dm.current_image = Image.new("RGB", (240, 285), (50, 50, 50))
+    dm.show_volume_overlay(40, 40)  # at max
+    assert dm._volume_timer is not None
+    dm._volume_timer.cancel()
+
+
+def test_volume_overlay_zero_max_no_div_zero():
+    """If max_volume is 0 (e.g. nighttime), don't crash on division."""
+    from PIL import Image
+    dm = DisplayManager(None)
+    dm.current_image = Image.new("RGB", (240, 285), (50, 50, 50))
+    dm.show_volume_overlay(0, 0)
+    assert dm._volume_timer is not None
+    dm._volume_timer.cancel()
+
+
+def test_volume_overlay_debounces_timer():
+    """Rapid successive calls should reset the timer instead of stacking."""
+    from PIL import Image
+    dm = DisplayManager(None)
+    dm.current_image = Image.new("RGB", (240, 285), (50, 50, 50))
+    dm.show_volume_overlay(20, 80)
+    first_timer = dm._volume_timer
+    dm.show_volume_overlay(25, 80)
+    second_timer = dm._volume_timer
+    # New timer should replace the old one
+    assert first_timer is not second_timer
+    # First timer should have been cancelled
+    assert not first_timer.is_alive() or first_timer.finished.is_set()
+    dm._volume_timer.cancel()
+
+
+def test_cleanup_cancels_volume_timer():
+    """cleanup() should cancel any pending volume overlay timer."""
+    from PIL import Image
+    dm = DisplayManager(None)
+    dm.current_image = Image.new("RGB", (240, 285), (50, 50, 50))
+    dm.show_volume_overlay(40, 80)
+    assert dm._volume_timer is not None
+    dm.cleanup()
+    assert dm._volume_timer is None

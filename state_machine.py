@@ -98,6 +98,13 @@ class StateMachine:
     # Volume
     # ------------------------------------------------------------------
 
+    def _show_volume_overlay(self):
+        """Trigger the SPI display volume overlay (no-op if no display)."""
+        try:
+            self.display.show_volume_overlay(self.volume, self._effective_max_volume())
+        except Exception as e:
+            print(f"[StateMachine] Error showing volume overlay: {e}")
+
     def volume_up(self):
         if self._is_locked():
             return
@@ -107,6 +114,7 @@ class StateMachine:
             self.volume = min(self.volume + step, max_vol)
             self._apply_volume(self.volume)
             self._save_state()
+        self._show_volume_overlay()
 
     def volume_down(self):
         if self._is_locked():
@@ -116,6 +124,7 @@ class StateMachine:
             self.volume = max(self.volume - step, 0)
             self._apply_volume(self.volume)
             self._save_state()
+        self._show_volume_overlay()
 
     def set_volume(self, level):
         if self._is_locked():
@@ -125,6 +134,7 @@ class StateMachine:
             self.volume = max(0, min(int(level), max_vol))
             self._apply_volume(self.volume)
             self._save_state()
+        self._show_volume_overlay()
 
     # ------------------------------------------------------------------
     # Track navigation
