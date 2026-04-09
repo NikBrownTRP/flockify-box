@@ -5,10 +5,13 @@ import requests
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
-# When Spotify returns 429 (rate limited), all non-playback API calls
-# are silently no-op'd for this many seconds. Prevents a cascade of
-# further 429s from set_volume/pause/next_track during the backoff.
-_RATE_LIMIT_BACKOFF_SEC = 60
+# When Spotify returns 429, all Spotify API calls are silently no-op'd
+# for this many seconds. Spotify's app-level throttling (the 'Your
+# application has reached a rate/request limit' variant) is sticky —
+# poking during the cooldown extends it, so we wait a full 10 minutes
+# before touching the API again. Manual mode switches by the user
+# clear the backoff early (see _clear_rate_limit).
+_RATE_LIMIT_BACKOFF_SEC = 600
 
 
 SCOPES = (
@@ -112,7 +115,17 @@ class SpotifyManager:
             open_browser=False,
             cache_path=TOKEN_CACHE_PATH,
         )
-        self.sp = spotipy.Spotify(auth_manager=auth_manager)
+        # retries=0 disables spotipy's internal retry loop on 429/5xx.
+        # Without this, one 429 triggers 4 internal HTTP requests
+        # (default retries=3), which amplifies rate-limiting instead
+        # of cooling it down. Status_forcelist=() tells spotipy not
+        # to auto-retry on any status codes at all — we handle retries
+        # in our own logic with proper backoff tracking.
+        self.sp = spotipy.Spotify(
+            auth_manager=auth_manager,
+            retries=0,
+            status_forcelist=(),
+        )
 
     def get_auth_url(self, client_id, client_secret):
         """Return the Spotify authorization URL for OAuth flow.
