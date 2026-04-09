@@ -213,6 +213,21 @@ class AudioRouter:
         self.set_default_sink(wired_name)
         time.sleep(0.3)
         self.move_all_streams(wired_name)
+        # WirePlumber's stream-restore may have cached a low sink volume
+        # from an earlier debug session (observed: 40% / -23.88 dB on the
+        # hifiberry-dac). Force the wired sink to full on every switch so
+        # the MAX98357A gets the raw signal — loudness shaping is done
+        # upstream via max_output_percent + player volumes.
+        try:
+            import subprocess
+            subprocess.run(
+                ["pactl", "set-sink-volume", wired_name, "100%"],
+                check=False,
+                capture_output=True,
+                timeout=3,
+            )
+        except Exception as e:
+            print(f"Could not enforce wired sink volume: {e}")
         self.current_output = "wired"
         return True
 
