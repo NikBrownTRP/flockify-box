@@ -258,7 +258,7 @@ class StateMachine:
                 # docstring and config key `spotify_gain_boost` for details.
                 try:
                     if self.audio_router is not None:
-                        boost = int(self.config.get("spotify_gain_boost", 100))
+                        boost = int(self.config.get("spotify_gain_boost", 90))
                         # Retry briefly — the librespot sink-input is created
                         # asynchronously when the first audio packet arrives.
                         def _apply_boost():
@@ -288,11 +288,27 @@ class StateMachine:
                 try:
                     url = webradio_cfg.get('url', '')
                     self.webradio.play_station(url)
-                    # Route through _apply_volume so the ceiling scale and
-                    # webradio-specific trim are both applied.
+                    # Route through _apply_volume so the ceiling scale is
+                    # applied.
                     self._apply_volume(self.volume)
                 except Exception as e:
                     print(f"[StateMachine] Error starting webradio: {e}")
+                # Apply a PipeWire sink-input boost to mpv, matching the
+                # Spotify path. Lets us raise webradio loudness above
+                # mpv's internal unity ceiling — used to balance against
+                # Spotify on the wired amp. Tunable via `webradio_gain_boost`.
+                try:
+                    if self.audio_router is not None:
+                        wr_boost = int(self.config.get("webradio_gain_boost", 120))
+                        def _apply_wr_boost():
+                            import time as _t
+                            for _ in range(20):
+                                if self.audio_router.set_application_sink_input_volume("mpv", wr_boost):
+                                    return
+                                _t.sleep(0.5)
+                        threading.Thread(target=_apply_wr_boost, daemon=True).start()
+                except Exception as e:
+                    print(f"[StateMachine] Error applying webradio gain boost: {e}")
                 # Update display
                 try:
                     image_path = webradio_cfg.get('image_path', '')
