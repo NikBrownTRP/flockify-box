@@ -7,3 +7,12 @@
 # The file must be owned by root and mode 0440.
 nbrown ALL=(root) NOPASSWD: /usr/bin/systemctl restart raspotify
 nbrown ALL=(root) NOPASSWD: /bin/systemctl restart raspotify
+# Extra commands needed for the "Reset Spotify Pairing" web UI action,
+# which wipes librespot's cached credentials so the box re-enters a
+# fresh zeroconf-pairable state.
+nbrown ALL=(root) NOPASSWD: /usr/bin/systemctl stop raspotify
+nbrown ALL=(root) NOPASSWD: /bin/systemctl stop raspotify
+nbrown ALL=(root) NOPASSWD: /usr/bin/systemctl start raspotify
+nbrown ALL=(root) NOPASSWD: /bin/systemctl start raspotify
+nbrown ALL=(root) NOPASSWD: /usr/bin/rm -f /var/lib/raspotify/credentials.json /var/cache/raspotify/volume
+nbrown ALL=(root) NOPASSWD: /bin/rm -f /var/lib/raspotify/credentials.json /var/cache/raspotify/volume

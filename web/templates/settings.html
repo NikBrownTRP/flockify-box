@@ -173,6 +173,15 @@
                 <button class="btn btn-secondary btn-sm" onclick="logoutSpotify()">Disconnect</button>
                 <button class="btn-link" onclick="clearSpotify()">Clear credentials</button>
             </div>
+            <div class="spotify-actions" style="margin-top: 0.75rem;">
+                <button class="btn btn-secondary btn-sm" onclick="resetPairing()">
+                    Reset Spotify Pairing
+                </button>
+                <p class="spotify-hint" style="margin: 0.25rem 0 0 0; font-size: 0.85em;">
+                    Fixes playback stuck with no audio — wipes the cached
+                    Connect session and lets you re-pair from your Spotify app.
+                </p>
+            </div>
         {% elif spotify_has_creds %}
             <div class="status-row">
                 <span class="badge badge-gray">Disconnected</span>

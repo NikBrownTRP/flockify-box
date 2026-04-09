@@ -13,6 +13,15 @@ from spotipy.oauth2 import SpotifyOAuth
 # clear the backoff early (see _clear_rate_limit).
 _RATE_LIMIT_BACKOFF_SEC = 600
 
+# Auto-escalation: if this many play_playlist() calls fail with the
+# "stuck Connect session" pattern (404/429 after the normal
+# raspotify-restart self-heal has already been attempted) within the
+# window below, the next failure triggers a full credential wipe
+# + raspotify restart. The box then waits for the user to re-pair
+# from their Spotify app — display_manager shows a prompt.
+_ESCALATION_FAILURE_THRESHOLD = 3
+_ESCALATION_WINDOW_SEC = 600
+
 
 SCOPES = (
     "user-read-playback-state "
@@ -32,6 +41,19 @@ class SpotifyManager:
         self.sp = None
         self._device_id = None
         self._rate_limit_until = 0.0
+        # Rolling list of stuck-session failure timestamps. Cleared on
+        # any successful play_playlist() and when reset_pairing() runs.
+        self._stuck_failures = []
+        # Set True while the box is waiting for the user to re-pair from
+        # their Spotify app after an auto-escalation or manual reset.
+        # Surfaced via is_waiting_for_pairing() so display_manager / the
+        # web UI can show a prompt.
+        self._waiting_for_pairing = False
+        # Optional callback fired the moment auto-escalation decides a
+        # re-pair is needed. flockify.py wires this to display_manager
+        # so a "Re-pair from Spotify app" image can flash up on the
+        # SPI panel without any polling.
+        self.on_pairing_required = None
 
         if self.is_configured():
             try:
@@ -185,6 +207,87 @@ class SpotifyManager:
             return True
         return False
 
+    def is_waiting_for_pairing(self):
+        """True if the box is waiting for the user to re-pair Spotify."""
+        return self._waiting_for_pairing
+
+    def clear_pairing_prompt(self):
+        """Called when we detect that a new Connect session has been
+        successfully established (play_playlist succeeded). Clears the
+        'please re-pair' prompt and resets the failure window."""
+        if self._waiting_for_pairing:
+            print("[SpotifyManager] Pairing prompt cleared — playback is working")
+        self._waiting_for_pairing = False
+        self._stuck_failures = []
+
+    def reset_pairing(self):
+        """Wipe librespot credentials and restart raspotify so the box
+        re-enters zeroconf-pairable state.
+
+        Used by:
+          - The 'Reset Spotify Pairing' web UI button
+          - Auto-escalation from play_playlist() after repeated stuck
+            sessions
+
+        Requires the extended sudoers entries in
+        systemd/flockify-raspotify.sudoers. Returns True on success.
+        """
+        print("[SpotifyManager] Resetting Spotify pairing…")
+        cmds = [
+            ["sudo", "-n", "systemctl", "stop", "raspotify"],
+            [
+                "sudo", "-n", "rm", "-f",
+                "/var/lib/raspotify/credentials.json",
+                "/var/cache/raspotify/volume",
+            ],
+            ["sudo", "-n", "systemctl", "start", "raspotify"],
+        ]
+        for cmd in cmds:
+            try:
+                res = subprocess.run(
+                    cmd, capture_output=True, timeout=10
+                )
+                if res.returncode != 0:
+                    print(
+                        f"[SpotifyManager] reset_pairing step {cmd[2:]} failed: "
+                        f"{res.stderr.decode().strip()}"
+                    )
+                    return False
+            except Exception as e:
+                print(f"[SpotifyManager] reset_pairing error on {cmd[2:]}: {e}")
+                return False
+        # Reset our failure tracking and enter "waiting for pair" mode.
+        # Also clear the rate-limit backoff — a fresh pair clears Spotify's
+        # throttle on its end.
+        self._stuck_failures = []
+        self._device_id = None
+        self._rate_limit_until = 0.0
+        self._waiting_for_pairing = True
+        print("[SpotifyManager] Spotify pairing reset — waiting for user to re-pair from phone")
+        if self.on_pairing_required is not None:
+            try:
+                self.on_pairing_required()
+            except Exception as e:
+                print(f"[SpotifyManager] on_pairing_required callback error: {e}")
+        return True
+
+    def _note_stuck_failure(self):
+        """Record a stuck-session failure. Returns True if this failure
+        crossed the auto-escalation threshold and a reset_pairing() should
+        be triggered immediately."""
+        now = time.monotonic()
+        self._stuck_failures = [
+            t for t in self._stuck_failures if now - t < _ESCALATION_WINDOW_SEC
+        ]
+        self._stuck_failures.append(now)
+        if len(self._stuck_failures) >= _ESCALATION_FAILURE_THRESHOLD:
+            print(
+                f"[SpotifyManager] {len(self._stuck_failures)} stuck-session failures "
+                f"in {_ESCALATION_WINDOW_SEC}s — auto-escalating to reset_pairing"
+            )
+            return True
+        return False
+
     def _recover_raspotify(self):
         """Attempt a `sudo systemctl restart raspotify` to unstick librespot.
 
@@ -279,6 +382,9 @@ class SpotifyManager:
                 self.sp.start_playback(device_id=device_id, context_uri=uri)
                 if attempt > 0:
                     print(f"[SpotifyManager] Playback started on attempt {attempt + 1}")
+                # Clear the stuck-session failure window and any pending
+                # "please re-pair" prompt on the first clean success.
+                self.clear_pairing_prompt()
                 return True
             except spotipy.exceptions.SpotifyException as e:
                 last_error = str(e)
@@ -314,6 +420,11 @@ class SpotifyManager:
                 continue
 
         print(f"[SpotifyManager] play_playlist gave up after {attempts} attempts: {last_error}")
+        # Record this as a stuck-session failure. If we've hit the
+        # threshold, auto-escalate to a full credential wipe so the user
+        # only has to re-pair from their phone to recover.
+        if self._note_stuck_failure():
+            self.reset_pairing()
         return False
 
     def next_track(self):

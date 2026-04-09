@@ -207,6 +207,10 @@ class StateMachine:
             'audio_output': self.audio_router.current_output,
             'is_playing': True,
             'period': period,
+            'spotify_needs_pairing': bool(
+                self.spotify is not None
+                and getattr(self.spotify, 'is_waiting_for_pairing', lambda: False)()
+            ),
         }
 
         if is_webradio:

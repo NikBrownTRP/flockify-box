@@ -230,6 +230,38 @@ def main():
         spotify_manager.config = config_manager
         spotify_manager.sp = None
         spotify_manager._device_id = None
+        spotify_manager._rate_limit_until = 0.0
+        spotify_manager._stuck_failures = []
+        spotify_manager._waiting_for_pairing = False
+        spotify_manager.on_pairing_required = None
+
+    # Wire the auto-escalation callback so the SPI display shows a
+    # "please re-pair Spotify from your phone" prompt the moment
+    # spotify_manager.reset_pairing() runs (either from the web UI
+    # button or from auto-escalation in play_playlist).
+    def _on_pairing_required():
+        try:
+            if display_manager is not None:
+                # If a dedicated pairing-prompt image exists use it;
+                # otherwise fall back to the existing sleep tiger with
+                # a console note. We re-use show_splash to get the
+                # letterboxing + backlight behaviour.
+                import os
+                candidate = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "images",
+                    "spotify_repair.png",
+                )
+                if os.path.isfile(candidate):
+                    display_manager.show_splash(candidate)
+                    print("[flockify] Showed Spotify re-pair prompt on display")
+        except Exception as e:
+            print(f"[flockify] Could not show re-pair prompt: {e}")
+
+    try:
+        spotify_manager.on_pairing_required = _on_pairing_required
+    except Exception:
+        pass
 
     # ------------------------------------------------------------------
     # 7. Init StateMachine

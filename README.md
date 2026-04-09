@@ -279,6 +279,48 @@ python3 flockify.py --no-hardware
 - Ensure the Spotify account has an active Premium subscription
 - The Raspotify device may take a few seconds to appear after boot
 
+### Spotify playback stuck — no audio, but the box thinks it's playing
+
+**Symptom**: Box is in Spotify mode, but no audio comes out. Switching
+tracks or playlists does nothing. Webradio still works fine. The journal
+shows `HTTP Error ... returned 404 due to Device not found` and/or
+`HTTP Error ... 429 ... too many 502 error responses`.
+
+**Cause**: librespot is in a "zombie Connect session" — it's running
+and visible to the Spotify Web API, but the Spotify Connect session it
+joined has no active device, so every `start_playback` / `transfer_playback`
+call routes to a phantom owner and returns 5xx. Spotify then auto-throttles
+the client ID, producing 429s. Restarting raspotify alone does NOT fix it;
+you need a fresh pairing.
+
+**Recovery — easy path**:
+1. Open the Flockify web UI → **Settings** → Spotify Connection
+2. Click **Reset Spotify Pairing** → confirm the prompt
+3. On your phone, fully close Spotify (swipe it away), reopen it
+4. Play any track on the phone
+5. Tap the "Connect to a device" icon → select **flockifybox**
+6. Audio should transfer to the box immediately, and flockify's Spotify
+   mode is now working again
+
+**Recovery — manual path over SSH** (if the web UI isn't available):
+```bash
+sudo systemctl stop raspotify
+sudo rm -f /var/lib/raspotify/credentials.json /var/cache/raspotify/volume
+sudo systemctl start raspotify
+# Then re-pair from your phone as in steps 3-5 above.
+```
+
+**Automatic recovery**: flockify tracks stuck-session failures in a
+10-minute rolling window. After 3 failures it automatically performs
+the credential wipe above and shows a "Re-pair from Spotify app" prompt
+on the display. The box is still usable for webradio in the meantime.
+
+**Why this happens**: the most common trigger is restarting raspotify
+repeatedly (e.g. during configuration changes). Each restart re-joins
+the Connect session, and occasionally it lands in a state where the
+session's "active device" slot is empty. Spotify won't clear the stale
+session state on its own — only a fresh pairing does.
+
 ### Bluetooth won't pair
 - Ensure the target device is in pairing mode
 - Check Bluetooth is powered on: `bluetoothctl show` → look for `Powered: yes`

@@ -329,6 +329,25 @@
         });
     };
 
+    window.resetPairing = function () {
+        if (!confirm(
+            'Reset Spotify pairing?\n\n' +
+            'This wipes the cached Connect session on the box. Afterwards, ' +
+            'open Spotify on your phone, play any track, tap the ' +
+            '"Connect to a device" icon, and select "flockifybox" to re-pair.\n\n' +
+            'Your Client ID and Secret are kept — only the paired session is cleared.'
+        )) return;
+        api('POST', '/api/spotify/reset_pairing').then(function (data) {
+            var msg = 'Spotify pairing has been reset.';
+            if (data.next_step) {
+                msg += '\n\n' + data.next_step;
+            }
+            alert(msg);
+        }).catch(function (err) {
+            showError('spotify-error', err.message);
+        });
+    };
+
     // ------------------------------------------------------------------
     // Settings — Slider value display updates
     // ------------------------------------------------------------------
