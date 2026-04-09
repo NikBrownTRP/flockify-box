@@ -5,6 +5,11 @@ import requests
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
+# When Spotify returns 429 (rate limited), all non-playback API calls
+# are silently no-op'd for this many seconds. Prevents a cascade of
+# further 429s from set_volume/pause/next_track during the backoff.
+_RATE_LIMIT_BACKOFF_SEC = 60
+
 
 SCOPES = (
     "user-read-playback-state "
@@ -23,6 +28,7 @@ class SpotifyManager:
         self.config = config_manager
         self.sp = None
         self._device_id = None
+        self._rate_limit_until = 0.0
 
         if self.is_configured():
             try:
@@ -154,6 +160,18 @@ class SpotifyManager:
             print(f"[SpotifyManager] OAuth callback failed: {e}")
             return False
 
+    def _rate_limited(self):
+        """True if we're inside a 429 backoff window."""
+        return time.monotonic() < self._rate_limit_until
+
+    def _note_rate_limit(self, e):
+        """Record a 429 response and return True if it was a 429."""
+        if getattr(e, "http_status", None) == 429:
+            self._rate_limit_until = time.monotonic() + _RATE_LIMIT_BACKOFF_SEC
+            print(f"[SpotifyManager] Rate limited (429) — backing off for {_RATE_LIMIT_BACKOFF_SEC}s")
+            return True
+        return False
+
     def _recover_raspotify(self):
         """Attempt a `sudo systemctl restart raspotify` to unstick librespot.
 
@@ -223,6 +241,9 @@ class SpotifyManager:
         """
         if not self.sp:
             return False
+        if self._rate_limited():
+            print("[SpotifyManager] In rate-limit backoff — skipping play_playlist")
+            return False
 
         last_error = None
         recovered = False
@@ -248,10 +269,28 @@ class SpotifyManager:
                 return True
             except spotipy.exceptions.SpotifyException as e:
                 last_error = str(e)
-                # 404 = device not yet ready; 502/503 = Spotify hiccup — retry.
-                if getattr(e, "http_status", None) in (404, 502, 503):
+                status = getattr(e, "http_status", None)
+                # 429 = rate limited. Back off hard and give up — continuing
+                # to hammer the API only makes it worse. This situation
+                # occurs when the Pi cold-boots into a librespot zombie
+                # state (device listed by sp.devices() but start_playback
+                # returns 404) and our retry loops cause Spotify to
+                # throttle the whole app.
+                if status == 429:
+                    self._rate_limit_until = time.monotonic() + _RATE_LIMIT_BACKOFF_SEC
+                    print(f"[SpotifyManager] Rate limited (429) — backing off for {_RATE_LIMIT_BACKOFF_SEC}s")
+                    return False
+                if status in (404, 502, 503):
                     # Forget the stale device id so find_device re-resolves
                     self._device_id = None
+                    # 404 on start_playback with a device that IS listed
+                    # means librespot is zombied. Trigger self-heal once,
+                    # same as when find_device fails.
+                    if status == 404 and not recovered and attempt >= (attempts // 2):
+                        recovered = self._recover_raspotify()
+                        if recovered:
+                            time.sleep(8)
+                            continue
                     time.sleep(delay)
                     continue
                 print(f"[SpotifyManager] Error starting playlist: {e}")
@@ -266,7 +305,7 @@ class SpotifyManager:
 
     def next_track(self):
         """Skip to next track. Returns True/False."""
-        if not self.sp:
+        if not self.sp or self._rate_limited():
             return False
         try:
             device_id = self._device_id or self.find_device()
@@ -275,6 +314,8 @@ class SpotifyManager:
             self.sp.next_track(device_id=device_id)
             return True
         except spotipy.exceptions.SpotifyException as e:
+            if self._note_rate_limit(e):
+                return False
             print(f"[SpotifyManager] Error skipping track: {e}")
             return False
         except requests.exceptions.ConnectionError as e:
@@ -283,7 +324,7 @@ class SpotifyManager:
 
     def previous_track(self):
         """Go to previous track. Returns True/False."""
-        if not self.sp:
+        if not self.sp or self._rate_limited():
             return False
         try:
             device_id = self._device_id or self.find_device()
@@ -292,6 +333,8 @@ class SpotifyManager:
             self.sp.previous_track(device_id=device_id)
             return True
         except spotipy.exceptions.SpotifyException as e:
+            if self._note_rate_limit(e):
+                return False
             print(f"[SpotifyManager] Error going to previous track: {e}")
             return False
         except requests.exceptions.ConnectionError as e:
@@ -300,7 +343,7 @@ class SpotifyManager:
 
     def pause(self):
         """Pause playback. Returns True/False."""
-        if not self.sp:
+        if not self.sp or self._rate_limited():
             return False
         try:
             device_id = self._device_id or self.find_device()
@@ -309,6 +352,8 @@ class SpotifyManager:
             self.sp.pause_playback(device_id=device_id)
             return True
         except spotipy.exceptions.SpotifyException as e:
+            if self._note_rate_limit(e):
+                return False
             print(f"[SpotifyManager] Error pausing: {e}")
             return False
         except requests.exceptions.ConnectionError as e:
@@ -317,7 +362,7 @@ class SpotifyManager:
 
     def resume(self):
         """Resume playback. Returns True/False."""
-        if not self.sp:
+        if not self.sp or self._rate_limited():
             return False
         try:
             device_id = self._device_id or self.find_device()
@@ -326,6 +371,8 @@ class SpotifyManager:
             self.sp.start_playback(device_id=device_id)
             return True
         except spotipy.exceptions.SpotifyException as e:
+            if self._note_rate_limit(e):
+                return False
             print(f"[SpotifyManager] Error resuming: {e}")
             return False
         except requests.exceptions.ConnectionError as e:
@@ -334,7 +381,7 @@ class SpotifyManager:
 
     def set_volume(self, level):
         """Set volume (0-100). Returns True/False."""
-        if not self.sp:
+        if not self.sp or self._rate_limited():
             return False
         try:
             device_id = self._device_id or self.find_device()
@@ -344,6 +391,8 @@ class SpotifyManager:
             self.sp.volume(level, device_id=device_id)
             return True
         except spotipy.exceptions.SpotifyException as e:
+            if self._note_rate_limit(e):
+                return False
             print(f"[SpotifyManager] Error setting volume: {e}")
             return False
         except requests.exceptions.ConnectionError as e:
