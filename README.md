@@ -70,9 +70,25 @@ Reboot; the DAC will appear as an ALSA card (e.g. `snd_rpi_hifiberry_dac`) and P
 | CS | 8 (SPI0 CE0) | 24 |
 | DC | 25 | 22 |
 | RST | 27 | 13 |
-| BL | 18 (PWM) | 12 |
+| BL | 13 (PWM) | 33 |
 | VCC | — | 1 (3.3V) |
 | GND | — | 6 (GND) |
+
+**Required: 10 kΩ pull-down resistor between GPIO 13 (pin 33) and GND (pin 34).**
+Without it, the display backlight stays lit after a J2 soft-off because the
+ST7789 module has an internal pull-up on its BL line and the Pi 5's 3.3 V
+rail remains alive during soft-off. The pull-down unconditionally grounds
+the pin whenever flockify isn't actively driving it; during normal operation
+the GPIO drive current (~16 mA) dominates the ~0.33 mA leakage through the
+resistor so there's no visible brightness loss. Any value 4.7 k–22 kΩ works.
+
+### Power Button (J2 header)
+
+Solder a momentary pushbutton across the Pi 5's **J2** (`PWR_BTN`) header
+next to the USB-C socket. Short press while running = clean soft-shutdown;
+short press from halted = wake and boot. No software configuration needed.
+Combined with the pull-down resistor above, the display goes dark
+immediately on shutdown and stays dark through the entire halted state.
 
 ## Installation
 
