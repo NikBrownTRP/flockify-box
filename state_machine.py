@@ -258,7 +258,7 @@ class StateMachine:
                 # docstring and config key `spotify_gain_boost` for details.
                 try:
                     if self.audio_router is not None:
-                        boost = int(self.config.get("spotify_gain_boost", 90))
+                        boost = int(self.config.get("spotify_gain_boost", 75))
                         # Retry briefly — the librespot sink-input is created
                         # asynchronously when the first audio packet arrives.
                         def _apply_boost():
@@ -299,7 +299,7 @@ class StateMachine:
                 # Spotify on the wired amp. Tunable via `webradio_gain_boost`.
                 try:
                     if self.audio_router is not None:
-                        wr_boost = int(self.config.get("webradio_gain_boost", 120))
+                        wr_boost = int(self.config.get("webradio_gain_boost", 150))
                         def _apply_wr_boost():
                             import time as _t
                             for _ in range(20):
