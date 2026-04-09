@@ -299,7 +299,7 @@ class StateMachine:
                 # Spotify on the wired amp. Tunable via `webradio_gain_boost`.
                 try:
                     if self.audio_router is not None:
-                        wr_boost = int(self.config.get("webradio_gain_boost", 150))
+                        wr_boost = int(self.config.get("webradio_gain_boost", 180))
                         def _apply_wr_boost():
                             import time as _t
                             for _ in range(20):
