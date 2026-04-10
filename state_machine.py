@@ -249,31 +249,9 @@ class StateMachine:
                     self.spotify.play_playlist(playlist.get('uri', ''))
                 except Exception as e:
                     print(f"[StateMachine] Error starting Spotify playlist: {e}")
-                # Re-push the box volume to librespot. Without this, after a
-                # raspotify restart (cold boot, self-heal, crash recovery)
-                # librespot plays back at its stale cached volume instead of
-                # what the box's knob says.
-                try:
-                    self.spotify.set_volume(self.volume)
-                except Exception as e:
-                    print(f"[StateMachine] Error re-applying Spotify volume: {e}")
-                # Apply the fixed downstream sink-input gain to close the
-                # audiobook-vs-webradio loudness gap. See audio_router
-                # docstring and config key `spotify_gain_boost` for details.
-                try:
-                    if self.audio_router is not None:
-                        boost = int(self.config.get("spotify_gain_boost", 75))
-                        # Retry briefly — the librespot sink-input is created
-                        # asynchronously when the first audio packet arrives.
-                        def _apply_boost():
-                            import time as _t
-                            for _ in range(20):  # up to ~10 s
-                                if self.audio_router.set_application_sink_input_volume("librespot", boost):
-                                    return
-                                _t.sleep(0.5)
-                        threading.Thread(target=_apply_boost, daemon=True).start()
-                except Exception as e:
-                    print(f"[StateMachine] Error applying Spotify gain boost: {e}")
+                # Push the sink volume (not the player volume — players run
+                # at unity now, volume is controlled at the PipeWire sink).
+                self._apply_volume(self.volume)
                 # Update display
                 try:
                     self.display.show_playlist_cover(playlist)
@@ -292,27 +270,10 @@ class StateMachine:
                 try:
                     url = webradio_cfg.get('url', '')
                     self.webradio.play_station(url)
-                    # Route through _apply_volume so the ceiling scale is
-                    # applied.
+                    self.webradio.set_volume(100)  # unity — sink handles volume
                     self._apply_volume(self.volume)
                 except Exception as e:
                     print(f"[StateMachine] Error starting webradio: {e}")
-                # Apply a PipeWire sink-input boost to mpv, matching the
-                # Spotify path. Lets us raise webradio loudness above
-                # mpv's internal unity ceiling — used to balance against
-                # Spotify on the wired amp. Tunable via `webradio_gain_boost`.
-                try:
-                    if self.audio_router is not None:
-                        wr_boost = int(self.config.get("webradio_gain_boost", 180))
-                        def _apply_wr_boost():
-                            import time as _t
-                            for _ in range(20):
-                                if self.audio_router.set_application_sink_input_volume("mpv", wr_boost):
-                                    return
-                                _t.sleep(0.5)
-                        threading.Thread(target=_apply_wr_boost, daemon=True).start()
-                except Exception as e:
-                    print(f"[StateMachine] Error applying webradio gain boost: {e}")
                 # Update display
                 try:
                     image_path = webradio_cfg.get('image_path', '')
@@ -324,25 +285,28 @@ class StateMachine:
             print(f"[StateMachine] Error activating mode: {e}")
 
     def _apply_volume(self, volume):
-        """Apply volume to the currently active player.
+        """Set the PipeWire default-sink volume.
 
-        The user-facing volume knob runs 0-100 so it feels natural, but the
-        actual level delivered to the player is scaled by
-        `max_output_percent` (default 60) so that knob=100 corresponds to a
-        kid-safe ceiling. This is a global gain cap, distinct from
-        `max_volume` which is the knob's upper bound.
+        Single gain stage architecture: both librespot and mpv run at
+        unity (internal volume 100%). The user's knob controls the
+        PipeWire sink volume directly — this is the last stage before
+        the DAC, keeping the full signal amplitude through the entire
+        digital path and avoiding the quantisation-noise / quality
+        degradation that came from stacking three attenuation layers.
+
+        `max_output_percent` (default 60) caps the sink volume so
+        knob=100 maps to a kid-safe ceiling.
         """
         ceiling = int(self.config.get('max_output_percent', 60))
         scaled = max(0, min(100, int(round(volume * ceiling / 100))))
         try:
-            if self.is_spotify_mode():
-                self.spotify.set_volume(scaled)
-            else:
-                # mpv applies the loudnorm EBU R128 filter internally
-                # (see webradio_player._init_player), so webradio loudness
-                # is already normalised to the same ~-14 LUFS target
-                # librespot uses for Spotify — no extra trim needed.
-                self.webradio.set_volume(scaled)
+            import subprocess
+            subprocess.run(
+                ["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{scaled}%"],
+                check=False,
+                capture_output=True,
+                timeout=3,
+            )
         except Exception as e:
             print(f"[StateMachine] Error applying volume: {e}")
 
