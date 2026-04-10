@@ -249,8 +249,13 @@ class StateMachine:
                     self.spotify.play_playlist(playlist.get('uri', ''))
                 except Exception as e:
                     print(f"[StateMachine] Error starting Spotify playlist: {e}")
-                # Push the sink volume (not the player volume — players run
-                # at unity now, volume is controlled at the PipeWire sink).
+                # Ensure librespot is at unity (spirc vol 100). The box
+                # controls loudness at the PipeWire sink, not inside
+                # librespot, so spirc must be pegged at max.
+                try:
+                    self.spotify.set_volume(100)
+                except Exception:
+                    pass
                 self._apply_volume(self.volume)
                 # Update display
                 try:
