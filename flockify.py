@@ -48,12 +48,20 @@ def shutdown(signum, frame):
         return
     _shutdown_done = True
     print("\nShutting down Flockify Box...")
-    # Show the sleeping tiger as immediate visual feedback so the user
+    # Show the shutdown tiger as immediate visual feedback so the user
     # knows the shutdown was triggered (otherwise J2 press looks like
     # nothing happened until the display goes dark seconds later).
     if display_manager is not None:
         try:
-            display_manager.show_sleep_screen()
+            import os as _os
+            _shutdown_img = _os.path.join(
+                _os.path.dirname(_os.path.abspath(__file__)),
+                "images", "shutdown_tiger.png",
+            )
+            if _os.path.isfile(_shutdown_img):
+                display_manager.show_splash(_shutdown_img)
+            else:
+                display_manager.show_sleep_screen()
             display_manager.set_backlight(40)
             import time as _t
             _t.sleep(1.5)
