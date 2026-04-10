@@ -66,7 +66,7 @@ sudo -u "$RUNUSER" \
     --name flockifybox \
     --backend alsa \
     --device default \
-    --bitrate 96 \
+    --bitrate 320 \
     --cache "$CACHE" \
     --system-cache "$SYSCACHE" \
     --enable-oauth

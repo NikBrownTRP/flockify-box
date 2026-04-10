@@ -6,20 +6,21 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
 # When Spotify returns 429, all Spotify API calls are silently no-op'd
-# for this many seconds. Spotify's app-level throttling (the 'Your
-# application has reached a rate/request limit' variant) is sticky —
-# poking during the cooldown extends it, so we wait a full 10 minutes
-# before touching the API again. Manual mode switches by the user
-# clear the backoff early (see _clear_rate_limit).
-_RATE_LIMIT_BACKOFF_SEC = 600
+# for this many seconds. 120 s is long enough that Spotify's backend
+# throttle clears, but short enough that the user can retry manually
+# by pressing a button after a couple of minutes.
+_RATE_LIMIT_BACKOFF_SEC = 120
 
-# Auto-escalation: if this many play_playlist() calls fail with the
-# "stuck Connect session" pattern (404/429 after the normal
-# raspotify-restart self-heal has already been attempted) within the
-# window below, the next failure triggers a full credential wipe
-# + raspotify restart. The box then waits for the user to re-pair
-# from their Spotify app — display_manager shows a prompt.
-_ESCALATION_FAILURE_THRESHOLD = 3
+# Boot grace period: for this many seconds after SpotifyManager is
+# constructed, we do NOT auto-escalate failures to a credential wipe.
+# Cold boot is a normal scenario where the Web API takes 30+ seconds
+# to see the device — not a stuck session that needs repair.
+_BOOT_GRACE_SEC = 300
+
+# Auto-escalation: after the boot grace period, this many consecutive
+# play_playlist() failures within the window trigger a credential wipe.
+# Set HIGH so only truly stuck sessions trigger it, not normal retries.
+_ESCALATION_FAILURE_THRESHOLD = 10
 _ESCALATION_WINDOW_SEC = 600
 
 
@@ -41,6 +42,7 @@ class SpotifyManager:
         self.sp = None
         self._device_id = None
         self._rate_limit_until = 0.0
+        self._boot_time = time.monotonic()
         # Rolling list of stuck-session failure timestamps. Cleared on
         # any successful play_playlist() and when reset_pairing() runs.
         self._stuck_failures = []
@@ -271,10 +273,24 @@ class SpotifyManager:
                 print(f"[SpotifyManager] on_pairing_required callback error: {e}")
         return True
 
+    def _in_boot_grace(self):
+        """True if we're still within the post-boot grace period where
+        failures are expected (librespot needs 30+ s to register with
+        the Web API after a cold start)."""
+        return (time.monotonic() - self._boot_time) < _BOOT_GRACE_SEC
+
     def _note_stuck_failure(self):
         """Record a stuck-session failure. Returns True if this failure
         crossed the auto-escalation threshold and a reset_pairing() should
-        be triggered immediately."""
+        be triggered immediately.
+
+        During the boot grace period (first 5 min), failures are expected
+        as librespot takes time to register. We do NOT count them toward
+        the escalation threshold to avoid destroying valid credentials
+        during a perfectly normal cold boot.
+        """
+        if self._in_boot_grace():
+            return False
         now = time.monotonic()
         self._stuck_failures = [
             t for t in self._stuck_failures if now - t < _ESCALATION_WINDOW_SEC
@@ -368,14 +384,18 @@ class SpotifyManager:
                 device_id = self.find_device()
                 if not device_id:
                     last_error = "no device"
-                    # Halfway through attempts, kick raspotify once. The
-                    # cold-boot zombie-zeroconf state only clears after a
-                    # fresh librespot restart long enough after the network
-                    # has warmed up. This is the self-heal path.
-                    if not recovered and attempt >= (attempts // 2):
+                    # Halfway through attempts, kick raspotify — but NOT
+                    # during the boot grace period, because restarting
+                    # raspotify mid-registration resets the 30+ second
+                    # Web API registration process to zero.
+                    if (
+                        not recovered
+                        and attempt >= (attempts // 2)
+                        and not self._in_boot_grace()
+                    ):
                         recovered = self._recover_raspotify()
                         if recovered:
-                            time.sleep(8)  # give librespot time to reregister
+                            time.sleep(8)
                             continue
                     time.sleep(delay)
                     continue
@@ -405,7 +425,12 @@ class SpotifyManager:
                     # 404 on start_playback with a device that IS listed
                     # means librespot is zombied. Trigger self-heal once,
                     # same as when find_device fails.
-                    if status == 404 and not recovered and attempt >= (attempts // 2):
+                    if (
+                        status == 404
+                        and not recovered
+                        and attempt >= (attempts // 2)
+                        and not self._in_boot_grace()
+                    ):
                         recovered = self._recover_raspotify()
                         if recovered:
                             time.sleep(8)

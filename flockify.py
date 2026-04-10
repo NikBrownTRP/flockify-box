@@ -369,7 +369,7 @@ def main():
             print("[flockify] Booted during night period — skipping resume (sleeping)")
         else:
             with state_machine.lock:
-                state_machine._activate_mode()
+                state_machine._activate_mode(boot_resume=True)
             # Set initial Bluetooth icon state
             current_output = audio_router.get_active_output()
             display_manager.set_bluetooth_active(current_output == "bluetooth")

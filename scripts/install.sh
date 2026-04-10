@@ -53,7 +53,7 @@ RASPOTIFY_CONF="/etc/raspotify/conf"
 if [ -f "$RASPOTIFY_CONF" ]; then
     # Update or add configuration values
     sed -i 's/^#*LIBRESPOT_NAME=.*/LIBRESPOT_NAME="flockifybox"/' "$RASPOTIFY_CONF"
-    sed -i 's/^#*LIBRESPOT_BITRATE=.*/LIBRESPOT_BITRATE="96"/' "$RASPOTIFY_CONF"
+    sed -i 's/^#*LIBRESPOT_BITRATE=.*/LIBRESPOT_BITRATE="320"/' "$RASPOTIFY_CONF"
     # Use ALSA backend (PipeWire's ALSA compat layer routes to BT/wired sink)
     sed -i 's/^#*LIBRESPOT_BACKEND=.*/LIBRESPOT_BACKEND="alsa"/' "$RASPOTIFY_CONF"
     # Use the default ALSA device, which on PipeWire systems routes to the
@@ -65,7 +65,7 @@ if [ -f "$RASPOTIFY_CONF" ]; then
 
     # If the values weren't found and replaced, append them
     grep -q '^LIBRESPOT_NAME=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_NAME="flockifybox"' >> "$RASPOTIFY_CONF"
-    grep -q '^LIBRESPOT_BITRATE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BITRATE="96"' >> "$RASPOTIFY_CONF"
+    grep -q '^LIBRESPOT_BITRATE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BITRATE="320"' >> "$RASPOTIFY_CONF"
     grep -q '^LIBRESPOT_BACKEND=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BACKEND="alsa"' >> "$RASPOTIFY_CONF"
     grep -q '^LIBRESPOT_DEVICE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_DEVICE="default"' >> "$RASPOTIFY_CONF"
     # Enable OAuth so librespot uses cached credentials at startup (must be set
@@ -207,7 +207,7 @@ echo "    Low power mode service installed and enabled."
 echo "    - CPU governor: powersave"
 echo "    - HDMI output: disabled"
 echo "    - WiFi power saving: enabled"
-echo "    - Raspotify bitrate: 96 kbps"
+echo "    - Raspotify bitrate: 320 kbps"
 
 # =============================================================================
 # Step 11c: Install auto-update service + generate deploy key

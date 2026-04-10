@@ -232,8 +232,14 @@ class StateMachine:
     # Internal methods
     # ------------------------------------------------------------------
 
-    def _activate_mode(self):
-        """Core transition logic. Must be called while self.lock is held."""
+    def _activate_mode(self, boot_resume=False):
+        """Core transition logic. Must be called while self.lock is held.
+
+        When *boot_resume* is True, Spotify playback uses much longer
+        retries (15 attempts × 4 s = 60 s) to give librespot time to
+        register with the Web API after a cold start. Normal button
+        presses use the default short retries so the UI stays responsive.
+        """
         try:
             if self.is_spotify_mode():
                 playlist = self.get_current_playlist()
@@ -246,7 +252,12 @@ class StateMachine:
                     pass
                 # Start Spotify playlist
                 try:
-                    self.spotify.play_playlist(playlist.get('uri', ''))
+                    if boot_resume:
+                        self.spotify.play_playlist(
+                            playlist.get('uri', ''), attempts=15, delay=4,
+                        )
+                    else:
+                        self.spotify.play_playlist(playlist.get('uri', ''))
                 except Exception as e:
                     print(f"[StateMachine] Error starting Spotify playlist: {e}")
                 # Ensure librespot is at unity (spirc vol 100). The box
