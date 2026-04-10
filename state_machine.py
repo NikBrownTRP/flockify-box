@@ -275,7 +275,12 @@ class StateMachine:
                 try:
                     url = webradio_cfg.get('url', '')
                     self.webradio.play_station(url)
-                    self.webradio.set_volume(100)  # unity — sink handles volume
+                    # Webradio streams are broadcast-hot (~-4 dBFS RMS
+                    # measured) vs Spotify's normalised ~-17 dBFS. Drop
+                    # mpv to 25% (-12 dB) to close the 13 dB gap.
+                    # Tunable via `webradio_volume` in config.
+                    wr_vol = int(self.config.get('webradio_volume', 25))
+                    self.webradio.set_volume(wr_vol)
                     self._apply_volume(self.volume)
                 except Exception as e:
                     print(f"[StateMachine] Error starting webradio: {e}")
