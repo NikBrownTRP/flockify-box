@@ -2,7 +2,7 @@
 
 A Raspberry Pi 5 music player built for kids — Spotify playlists, web radio, physical buttons, a tiny SPI display, and a parent-friendly web interface, all in one box.
 
-**[📖 Full Setup Guide & Documentation](docs/index.html)** — interactive page with shopping list, wiring diagrams, and step-by-step instructions (also available in German).
+**[📖 Full Setup Guide & Documentation](https://nikbrowntrp.github.io/flockify-box/)** — interactive page with shopping list, wiring diagrams, and step-by-step instructions (also available in German).
 
 ## Features
 
