@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flockify Box — A Music Player for Kids</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   FLOCKIFY BOX — Project Introduction Page
+   Aesthetic: Warm, playful, handcrafted toy-project feel
+   ================================================================ */
+
+:root {
+  --amber: #F59E0B;
+  --amber-light: #FDE68A;
+  --amber-dark: #D97706;
+  --cream: #FFFBF5;
+  --cream-dark: #FFF3E0;
+  --brown: #3D2914;
+  --brown-light: #6B4C2A;
+  --brown-muted: #A07850;
+  --green: #22C55E;
+  --green-light: #BBF7D0;
+  --red: #EF4444;
+  --red-light: #FEE2E2;
+  --blue: #3B82F6;
+  --blue-light: #DBEAFE;
+  --orange: #FB923C;
+  --white: #FFFFFF;
+  --shadow-sm: 0 1px 3px rgba(61, 41, 20, 0.08);
+  --shadow-md: 0 4px 12px rgba(61, 41, 20, 0.1);
+  --shadow-lg: 0 8px 30px rgba(61, 41, 20, 0.12);
+  --shadow-card: 0 2px 8px rgba(61, 41, 20, 0.06), 0 0 0 1px rgba(61, 41, 20, 0.04);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --font-display: 'Fredoka', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--brown);
+  background: var(--cream);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Noise texture overlay ---- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px;
+}
+
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 251, 245, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(61, 41, 20, 0.06);
+  padding: 0 24px;
+}
+
+.nav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.nav-logo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--brown);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-logo span { font-size: 1.4rem; }
+
+.nav-links {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.nav-links a {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--brown-muted);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.nav-links a:hover {
+  color: var(--brown);
+  background: var(--cream-dark);
+}
+
+.lang-toggle {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+  background: var(--amber-light);
+  color: var(--brown);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 8px;
+}
+
+.lang-toggle:hover {
+  background: var(--amber);
+  color: var(--white);
+}
+
+/* ================================================================
+   LAYOUT
+   ================================================================ */
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+section {
+  padding: 72px 0;
+}
+
+section + section {
+  border-top: 1px solid rgba(61, 41, 20, 0.06);
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.8rem;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+
+.section-subtitle {
+  font-size: 1.05rem;
+  color: var(--brown-muted);
+  margin-bottom: 36px;
+  max-width: 600px;
+}
+
+/* ================================================================
+   HERO
+   ================================================================ */
+
+.hero {
+  padding: 100px 0 80px;
+  text-align: center;
+  background: linear-gradient(180deg, var(--cream-dark) 0%, var(--cream) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-tiger {
+  font-size: 4.5rem;
+  display: block;
+  margin-bottom: 20px;
+  animation: tiger-bounce 3s ease-in-out infinite;
+}
+
+@keyframes tiger-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.hero h1 {
+  margin-bottom: 16px;
+}
+
+.hero h1 .highlight {
+  color: var(--amber-dark);
+  position: relative;
+}
+
+.hero h1 .highlight::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--amber-light);
+  border-radius: 3px;
+  z-index: -1;
+}
+
+.hero-tagline {
+  font-size: 1.2rem;
+  color: var(--brown-muted);
+  max-width: 520px;
+  margin: 0 auto 32px;
+  line-height: 1.6;
+}
+
+.hero-badges {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 6px 16px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-amber { background: var(--amber-light); color: var(--brown); }
+.badge-green { background: var(--green-light); color: #166534; }
+.badge-blue { background: var(--blue-light); color: #1E40AF; }
+
+/* ================================================================
+   FEATURE GRID
+   ================================================================ */
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 36px;
+}
+
+.feature-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.feature-icon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.feature-card p {
+  font-size: 0.9rem;
+  color: var(--brown-muted);
+  line-height: 1.55;
+}
+
+/* ================================================================
+   SHOPPING LIST
+   ================================================================ */
+
+.shopping-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--white);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  margin-top: 24px;
+}
+
+.shopping-table th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 14px 20px;
+  background: var(--cream-dark);
+  text-align: left;
+  color: var(--brown-muted);
+  border-bottom: 1px solid rgba(61, 41, 20, 0.06);
+}
+
+.shopping-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(61, 41, 20, 0.04);
+  font-size: 0.92rem;
+  vertical-align: top;
+}
+
+.shopping-table tr:last-child td { border-bottom: none; }
+
+.shopping-table tr:hover td {
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.check-item {
+  cursor: pointer;
+  user-select: none;
+}
+
+.check-item input[type="checkbox"] {
+  accent-color: var(--green);
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.check-item.checked {
+  text-decoration: line-through;
+  color: var(--brown-muted);
+}
+
+td .note {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--brown-muted);
+  margin-top: 4px;
+}
+
+/* ================================================================
+   WIRING TABLES
+   ================================================================ */
+
+.wiring-group {
+  margin-top: 32px;
+}
+
+.wiring-group + .wiring-group { margin-top: 40px; }
+
+.wiring-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  font-size: 0.88rem;
+}
+
+.wiring-table th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 16px;
+  background: var(--cream-dark);
+  text-align: left;
+  color: var(--brown-muted);
+}
+
+.wiring-table td {
+  padding: 10px 16px;
+  border-top: 1px solid rgba(61, 41, 20, 0.04);
+}
+
+.wiring-table code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.82rem;
+  background: var(--cream-dark);
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+.callout {
+  background: var(--amber-light);
+  border-left: 4px solid var(--amber);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 16px 20px;
+  margin-top: 20px;
+  font-size: 0.9rem;
+}
+
+.callout-red {
+  background: var(--red-light);
+  border-left-color: var(--red);
+}
+
+.callout strong { display: block; margin-bottom: 4px; }
+
+/* ================================================================
+   SETUP STEPS
+   ================================================================ */
+
+.steps {
+  counter-reset: step;
+  margin-top: 36px;
+}
+
+.step {
+  counter-increment: step;
+  position: relative;
+  padding-left: 72px;
+  margin-bottom: 40px;
+  min-height: 56px;
+}
+
+.step::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--amber);
+  color: var(--white);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.step::after {
+  content: '';
+  position: absolute;
+  left: 25px;
+  top: 56px;
+  bottom: -36px;
+  width: 2px;
+  background: var(--amber-light);
+}
+
+.step:last-child::after { display: none; }
+
+.step h3 { margin-bottom: 8px; }
+
+.step p, .step ul {
+  font-size: 0.92rem;
+  color: var(--brown-light);
+}
+
+.step ul {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.step li { margin-bottom: 4px; }
+
+.code-block {
+  background: #1E1B16;
+  color: #F0E6D8;
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin-top: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  position: relative;
+}
+
+.code-block .comment { color: #8B7355; }
+.code-block .cmd { color: var(--amber-light); }
+
+/* ================================================================
+   FAQ / TROUBLESHOOTING
+   ================================================================ */
+
+.faq-list { margin-top: 28px; }
+
+.faq-item {
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.faq-question {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 18px 24px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--brown);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.15s;
+}
+
+.faq-question:hover { background: var(--cream-dark); }
+
+.faq-question::after {
+  content: '+';
+  font-size: 1.4rem;
+  color: var(--amber);
+  transition: transform 0.25s;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.faq-item.open .faq-question::after {
+  transform: rotate(45deg);
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+.faq-answer-inner {
+  padding: 0 24px 20px;
+  font-size: 0.9rem;
+  color: var(--brown-light);
+  line-height: 1.6;
+}
+
+.faq-answer-inner code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.82rem;
+  background: var(--cream-dark);
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+/* ================================================================
+   FOOTER
+   ================================================================ */
+
+footer {
+  text-align: center;
+  padding: 48px 24px;
+  font-size: 0.85rem;
+  color: var(--brown-muted);
+  border-top: 1px solid rgba(61, 41, 20, 0.06);
+}
+
+footer a {
+  color: var(--amber-dark);
+  text-decoration: none;
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+
+@media (max-width: 700px) {
+  .nav-links a { display: none; }
+  .hero { padding: 72px 0 56px; }
+  .hero-tiger { font-size: 3.5rem; }
+  section { padding: 48px 0; }
+  h2 { font-size: 1.5rem; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .shopping-table th:last-child,
+  .shopping-table td:last-child { display: none; }
+  .step { padding-left: 56px; }
+  .step::before { width: 42px; height: 42px; font-size: 1rem; }
+  .step::after { left: 20px; top: 46px; bottom: -32px; }
+}
+
+/* ================================================================
+   BILINGUAL — hide inactive language
+   ================================================================ */
+
+[data-lang="de"] { display: none; }
+html[lang="de"] [data-lang="de"] { display: revert; }
+html[lang="de"] [data-lang="en"] { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAVIGATION
+     ============================================================ -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo"><span>🐯</span> Flockify Box</a>
+    <div class="nav-links">
+      <a href="#features" data-lang="en">Features</a>
+      <a href="#features" data-lang="de">Funktionen</a>
+      <a href="#shopping" data-lang="en">Shopping List</a>
+      <a href="#shopping" data-lang="de">Einkaufsliste</a>
+      <a href="#wiring" data-lang="en">Wiring</a>
+      <a href="#wiring" data-lang="de">Verkabelung</a>
+      <a href="#setup" data-lang="en">Setup</a>
+      <a href="#setup" data-lang="de">Einrichtung</a>
+      <a href="#troubleshooting" data-lang="en">Help</a>
+      <a href="#troubleshooting" data-lang="de">Hilfe</a>
+      <button class="lang-toggle" onclick="toggleLang()">DE 🇩🇪</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero" id="top">
+  <div class="container">
+    <span class="hero-tiger">🐯</span>
+    <h1>
+      <span data-lang="en">The <span class="highlight">Flockify Box</span></span>
+      <span data-lang="de">Die <span class="highlight">Flockify Box</span></span>
+    </h1>
+    <p class="hero-tagline" data-lang="en">
+      A Raspberry Pi-powered music player built for kids.
+      Spotify playlists, web radio, physical buttons, a tiny display,
+      and a parent-friendly web interface — all in one box.
+    </p>
+    <p class="hero-tagline" data-lang="de">
+      Ein Raspberry Pi Musikplayer, gebaut für Kinder.
+      Spotify-Playlists, Webradio, physische Tasten, ein kleines Display
+      und ein elternfreundliches Webinterface — alles in einer Box.
+    </p>
+    <div class="hero-badges">
+      <span class="badge badge-amber">Raspberry Pi 5</span>
+      <span class="badge badge-green">Spotify Connect</span>
+      <span class="badge badge-blue">Open Source</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FEATURES
+     ============================================================ -->
+<section id="features">
+  <div class="container">
+    <h2>
+      <span data-lang="en">What Can It Do?</span>
+      <span data-lang="de">Was kann die Box?</span>
+    </h2>
+    <p class="section-subtitle" data-lang="en">Everything a kid needs for music — and everything a parent needs for peace of mind.</p>
+    <p class="section-subtitle" data-lang="de">Alles was ein Kind für Musik braucht — und alles was Eltern für ruhige Nächte brauchen.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="feature-icon">🎵</span>
+        <h3 data-lang="en">Spotify + Web Radio</h3>
+        <h3 data-lang="de">Spotify + Webradio</h3>
+        <p data-lang="en">Play up to 10 Spotify playlists or albums, plus one web radio station. Cycle through modes with a single button.</p>
+        <p data-lang="de">Bis zu 10 Spotify-Playlists oder Alben abspielen, plus einen Webradio-Sender. Mit einem Knopf zwischen Modi wechseln.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🔘</span>
+        <h3 data-lang="en">5 Physical Buttons</h3>
+        <h3 data-lang="de">5 Physische Tasten</h3>
+        <p data-lang="en">Volume up/down, next/previous track, and mode switching. No screen, no app — just press and play.</p>
+        <p data-lang="de">Lautstärke hoch/runter, nächster/vorheriger Titel und Moduswechsel. Kein Bildschirm, keine App — einfach drücken und spielen.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🖥️</span>
+        <h3 data-lang="en">1.83" SPI Display</h3>
+        <h3 data-lang="de">1.83" SPI Display</h3>
+        <p data-lang="en">Shows the current playlist cover, a sleeping tiger at night, and a volume overlay on button presses.</p>
+        <p data-lang="de">Zeigt das aktuelle Playlist-Cover, einen schlafenden Tiger nachts und ein Lautstärke-Overlay bei Tastendruck.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🌙</span>
+        <h3 data-lang="en">Time Schedule</h3>
+        <h3 data-lang="de">Zeitplan</h3>
+        <p data-lang="en">Night mode locks all buttons and shows a sleep screen. Quiet hours reduce volume and brightness. Fully configurable.</p>
+        <p data-lang="de">Nachtmodus sperrt alle Tasten und zeigt den Schlaf-Bildschirm. Ruhestunden reduzieren Lautstärke und Helligkeit. Voll konfigurierbar.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📱</span>
+        <h3 data-lang="en">Web Interface</h3>
+        <h3 data-lang="de">Webinterface</h3>
+        <p data-lang="en">Manage playlists, configure the schedule, pair Bluetooth speakers, and scan for WiFi — all from your phone.</p>
+        <p data-lang="de">Playlists verwalten, Zeitplan konfigurieren, Bluetooth-Lautsprecher koppeln und WiFi scannen — alles vom Handy aus.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📡</span>
+        <h3 data-lang="en">WiFi Hotspot</h3>
+        <h3 data-lang="de">WiFi Hotspot</h3>
+        <p data-lang="en">No known WiFi? The box creates its own "FlockifyBox" network so you can connect and configure from anywhere.</p>
+        <p data-lang="de">Kein bekanntes WiFi? Die Box erstellt ihr eigenes "FlockifyBox"-Netzwerk, damit du dich von überall verbinden und konfigurieren kannst.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SHOPPING LIST
+     ============================================================ -->
+<section id="shopping">
+  <div class="container">
+    <h2>
+      <span data-lang="en">Shopping List</span>
+      <span data-lang="de">Einkaufsliste</span>
+    </h2>
+    <p class="section-subtitle" data-lang="en">Everything you need to build your own Flockify Box. Check items off as you collect them.</p>
+    <p class="section-subtitle" data-lang="de">Alles was du brauchst, um deine eigene Flockify Box zu bauen. Hake Teile ab, wenn du sie hast.</p>
+
+    <table class="shopping-table">
+      <thead>
+        <tr>
+          <th data-lang="en">Component</th>
+          <th data-lang="de">Bauteil</th>
+          <th data-lang="en">Details</th>
+          <th data-lang="de">Details</th>
+          <th data-lang="en">Notes</th>
+          <th data-lang="de">Hinweise</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> Raspberry Pi 5</label></td>
+          <td data-lang="en">2 GB model (or higher)</td>
+          <td data-lang="de">2 GB Modell (oder mehr)</td>
+          <td data-lang="en"><span class="note">The brain of the box</span></td>
+          <td data-lang="de"><span class="note">Das Gehirn der Box</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> MicroSD Card</label></td>
+          <td data-lang="en">16 GB or larger</td>
+          <td data-lang="de">16 GB oder größer</td>
+          <td data-lang="en"><span class="note">For Raspberry Pi OS</span></td>
+          <td data-lang="de"><span class="note">Für Raspberry Pi OS</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> USB-C Power Supply</label></td>
+          <td data-lang="en">5V 3A recommended</td>
+          <td data-lang="de">5V 3A empfohlen</td>
+          <td data-lang="en"><span class="note">Official Pi 5 PSU is best</span></td>
+          <td data-lang="de"><span class="note">Offizielles Pi 5 Netzteil ist am besten</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> SPI Display</label></td>
+          <td data-lang="en">1.83" ST7789 LCD (240x280)</td>
+          <td data-lang="de">1.83" ST7789 LCD (240x280)</td>
+          <td data-lang="en"><span class="note">Waveshare or generic ST7789 module</span></td>
+          <td data-lang="de"><span class="note">Waveshare oder generisches ST7789 Modul</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> MAX98357A Amplifier</label></td>
+          <td data-lang="en">I2S DAC + Class D Amp</td>
+          <td data-lang="de">I2S DAC + Class D Verstärker</td>
+          <td data-lang="en"><span class="note">Adafruit or generic breakout board</span></td>
+          <td data-lang="de"><span class="note">Adafruit oder generisches Breakout Board</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> Speaker</label></td>
+          <td data-lang="en">4-8 Ohm, 3W</td>
+          <td data-lang="de">4-8 Ohm, 3W</td>
+          <td data-lang="en"><span class="note">Directly connected to MAX98357A output</span></td>
+          <td data-lang="de"><span class="note">Direkt an MAX98357A Ausgang anschließen</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> 5x Momentary Buttons</label></td>
+          <td data-lang="en">Tactile push buttons</td>
+          <td data-lang="de">Taktile Drucktaster</td>
+          <td data-lang="en"><span class="note">No external resistors needed (internal pull-ups)</span></td>
+          <td data-lang="de"><span class="note">Keine externen Widerstände nötig (interne Pull-ups)</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> 1x Power Button</label></td>
+          <td data-lang="en">Momentary pushbutton for J2</td>
+          <td data-lang="de">Momentan-Taster für J2</td>
+          <td data-lang="en"><span class="note">Connects to Pi 5's J2 (PWR_BTN) header</span></td>
+          <td data-lang="de"><span class="note">Verbindet mit Pi 5's J2 (PWR_BTN) Header</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> 10 kOhm Resistor</label></td>
+          <td data-lang="en">1x pull-down for backlight</td>
+          <td data-lang="de">1x Pull-down für Hintergrundbeleuchtung</td>
+          <td data-lang="en"><span class="note">Between GPIO 13 (pin 33) and GND (pin 34)</span></td>
+          <td data-lang="de"><span class="note">Zwischen GPIO 13 (Pin 33) und GND (Pin 34)</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> Jumper Wires</label></td>
+          <td data-lang="en">Female-to-female, various</td>
+          <td data-lang="de">Buchse-zu-Buchse, diverse</td>
+          <td data-lang="en"><span class="note">For connecting all components to GPIO</span></td>
+          <td data-lang="de"><span class="note">Zum Verbinden aller Komponenten mit GPIO</span></td>
+        </tr>
+        <tr>
+          <td><label class="check-item"><input type="checkbox"> Enclosure</label></td>
+          <td data-lang="en">Your choice!</td>
+          <td data-lang="de">Deine Wahl!</td>
+          <td data-lang="en"><span class="note">Wooden box, 3D print, cardboard — be creative</span></td>
+          <td data-lang="de"><span class="note">Holzbox, 3D-Druck, Karton — sei kreativ</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p style="margin-top:12px; font-size:0.85rem; color: var(--brown-muted);">
+      <span data-lang="en">Optional: Bluetooth speaker or headphones for wireless audio.</span>
+      <span data-lang="de">Optional: Bluetooth-Lautsprecher oder Kopfhörer für drahtloses Audio.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     WIRING
+     ============================================================ -->
+<section id="wiring">
+  <div class="container">
+    <h2>
+      <span data-lang="en">Wiring Guide</span>
+      <span data-lang="de">Verkabelungsanleitung</span>
+    </h2>
+    <p class="section-subtitle" data-lang="en">Connect the display, amplifier, and buttons to the Raspberry Pi's 40-pin GPIO header.</p>
+    <p class="section-subtitle" data-lang="de">Verbinde Display, Verstärker und Tasten mit dem 40-Pin GPIO-Header des Raspberry Pi.</p>
+
+    <!-- SPI Display -->
+    <div class="wiring-group">
+      <h3>🖥️ SPI Display (ST7789)</h3>
+      <table class="wiring-table">
+        <thead><tr><th>Display Pin</th><th>GPIO</th><th>Header Pin</th></tr></thead>
+        <tbody>
+          <tr><td>SCK</td><td><code>GPIO 11</code> (SPI0 SCLK)</td><td>23</td></tr>
+          <tr><td>SDA (MOSI)</td><td><code>GPIO 10</code> (SPI0 MOSI)</td><td>19</td></tr>
+          <tr><td>CS</td><td><code>GPIO 8</code> (SPI0 CE0)</td><td>24</td></tr>
+          <tr><td>DC</td><td><code>GPIO 25</code></td><td>22</td></tr>
+          <tr><td>RST</td><td><code>GPIO 27</code></td><td>13</td></tr>
+          <tr><td>BL</td><td><code>GPIO 13</code> (PWM)</td><td>33</td></tr>
+          <tr><td>VCC</td><td>3.3V</td><td>1</td></tr>
+          <tr><td>GND</td><td>GND</td><td>6</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-red">
+        <strong data-lang="en">Important: 10 kOhm pull-down resistor</strong>
+        <strong data-lang="de">Wichtig: 10 kOhm Pull-down Widerstand</strong>
+        <span data-lang="en">Solder a 10 kOhm resistor between pin 33 (GPIO 13) and pin 34 (GND). Without it, the display backlight stays on after shutdown.</span>
+        <span data-lang="de">Einen 10 kOhm Widerstand zwischen Pin 33 (GPIO 13) und Pin 34 (GND) löten. Ohne diesen bleibt die Hintergrundbeleuchtung nach dem Herunterfahren an.</span>
+      </div>
+    </div>
+
+    <!-- MAX98357A -->
+    <div class="wiring-group">
+      <h3>🔊 MAX98357A Amplifier (I2S)</h3>
+      <table class="wiring-table">
+        <thead><tr><th>Amp Pin</th><th>GPIO</th><th>Header Pin</th></tr></thead>
+        <tbody>
+          <tr><td>VIN</td><td>5V</td><td>2</td></tr>
+          <tr><td>GND</td><td>GND</td><td>6</td></tr>
+          <tr><td>BCLK</td><td><code>GPIO 18</code></td><td>12</td></tr>
+          <tr><td>LRC</td><td><code>GPIO 19</code></td><td>35</td></tr>
+          <tr><td>DIN</td><td><code>GPIO 21</code></td><td>40</td></tr>
+          <tr><td>SD/GAIN</td><td colspan="2">
+            <span data-lang="en">Leave unconnected (default 9 dB gain)</span>
+            <span data-lang="de">Nicht verbinden (Standard 9 dB Verstärkung)</span>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Buttons -->
+    <div class="wiring-group">
+      <h3>🔘 Buttons</h3>
+      <p style="font-size:0.88rem; color: var(--brown-muted); margin-bottom:12px;">
+        <span data-lang="en">Each button connects its GPIO pin to GND when pressed. Internal pull-up resistors are used.</span>
+        <span data-lang="de">Jede Taste verbindet ihren GPIO-Pin mit GND beim Drücken. Interne Pull-up Widerstände werden verwendet.</span>
+      </p>
+      <table class="wiring-table">
+        <thead>
+          <tr>
+            <th data-lang="en">Button</th>
+            <th data-lang="de">Taste</th>
+            <th>GPIO</th>
+            <th>Header Pin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td data-lang="en">Volume Up</td><td data-lang="de">Lauter</td><td><code>GPIO 5</code></td><td>29</td></tr>
+          <tr><td data-lang="en">Volume Down</td><td data-lang="de">Leiser</td><td><code>GPIO 6</code></td><td>31</td></tr>
+          <tr><td data-lang="en">Next Track</td><td data-lang="de">Nächster Titel</td><td><code>GPIO 16</code></td><td>36</td></tr>
+          <tr><td data-lang="en">Previous Track</td><td data-lang="de">Vorheriger Titel</td><td><code>GPIO 26</code></td><td>37</td></tr>
+          <tr><td data-lang="en">Next Mode</td><td data-lang="de">Nächster Modus</td><td><code>GPIO 12</code></td><td>32</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Power Button -->
+    <div class="wiring-group">
+      <h3>⏻ Power Button (J2 Header)</h3>
+      <p style="font-size:0.88rem; color: var(--brown-light);">
+        <span data-lang="en">Solder a momentary pushbutton across the Pi 5's <strong>J2</strong> header (next to USB-C). Short press = clean shutdown. Press again from halted = wake and boot.</span>
+        <span data-lang="de">Einen Momentan-Taster an den <strong>J2</strong> Header des Pi 5 löten (neben USB-C). Kurz drücken = sauberes Herunterfahren. Erneut drücken = Aufwachen und Hochfahren.</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SOFTWARE SETUP
+     ============================================================ -->
+<section id="setup">
+  <div class="container">
+    <h2>
+      <span data-lang="en">Software Setup</span>
+      <span data-lang="de">Software-Einrichtung</span>
+    </h2>
+    <p class="section-subtitle" data-lang="en">From a fresh SD card to a working music player in about 20 minutes.</p>
+    <p class="section-subtitle" data-lang="de">Von einer frischen SD-Karte zum funktionierenden Musikplayer in etwa 20 Minuten.</p>
+
+    <div class="steps">
+      <div class="step">
+        <h3 data-lang="en">Flash the SD Card</h3>
+        <h3 data-lang="de">SD-Karte flashen</h3>
+        <p data-lang="en">Use <strong>Raspberry Pi Imager</strong> to flash <strong>Raspberry Pi OS (64-bit, Bookworm)</strong>. In the imager settings, enable SSH and configure your WiFi network.</p>
+        <p data-lang="de">Verwende den <strong>Raspberry Pi Imager</strong> um <strong>Raspberry Pi OS (64-bit, Bookworm)</strong> zu flashen. In den Imager-Einstellungen SSH aktivieren und dein WiFi-Netzwerk konfigurieren.</p>
+      </div>
+
+      <div class="step">
+        <h3 data-lang="en">Boot and Connect</h3>
+        <h3 data-lang="de">Starten und Verbinden</h3>
+        <p data-lang="en">Insert the SD card, power on the Pi, and SSH in:</p>
+        <p data-lang="de">SD-Karte einsetzen, Pi einschalten und per SSH verbinden:</p>
+        <div class="code-block"><span class="cmd">ssh</span> pi@raspberrypi.local</div>
+      </div>
+
+      <div class="step">
+        <h3 data-lang="en">Clone the Project</h3>
+        <h3 data-lang="de">Projekt klonen</h3>
+        <div class="code-block"><span class="cmd">git clone</span> https://github.com/NikBrownTRP/flockify-box.git ~/flockify</div>
+      </div>
+
+      <div class="step">
+        <h3 data-lang="en">Run the Installer</h3>
+        <h3 data-lang="de">Installer ausführen</h3>
+        <p data-lang="en">The install script handles everything: packages, services, config, hostname, groups, and auto-update setup.</p>
+        <p data-lang="de">Das Installationsskript erledigt alles: Pakete, Dienste, Konfiguration, Hostname, Gruppen und Auto-Update Setup.</p>
+        <div class="code-block"><span class="cmd">cd</span> ~/flockify<br><span class="cmd">sudo bash</span> scripts/install.sh</div>
+        <p style="margin-top:12px;" data-lang="en">This takes about 10 minutes. Reboot when finished:</p>
+        <p style="margin-top:12px;" data-lang="de">Das dauert etwa 10 Minuten. Nach Abschluss neu starten:</p>
+        <div class="code-block"><span class="cmd">sudo reboot</span></div>
+      </div>
+
+      <div class="step">
+        <h3 data-lang="en">Enable I2S DAC</h3>
+        <h3 data-lang="de">I2S DAC aktivieren</h3>
+        <p data-lang="en">The installer adds the DAC overlay to <code>/boot/firmware/config.txt</code> automatically. Verify after reboot:</p>
+        <p data-lang="de">Der Installer fügt das DAC-Overlay automatisch zu <code>/boot/firmware/config.txt</code> hinzu. Nach Neustart überprüfen:</p>
+        <div class="code-block"><span class="cmd">aplay -l</span> <span class="comment"># Should show "snd_rpi_hifiberry_dac"</span></div>
+      </div>
+
+      <div class="step">
+        <h3 data-lang="en">Open the Web UI</h3>
+        <h3 data-lang="de">Webinterface öffnen</h3>
+        <p data-lang="en">On your phone or laptop, navigate to:</p>
+        <p data-lang="de">Auf deinem Handy oder Laptop, navigiere zu:</p>
+        <div class="code-block">http://flockifybox.local:5000</div>
+      </div>
+
+      <div class="step">
+        <h3 data-lang="en">Connect Spotify</h3>
+        <h3 data-lang="de">Spotify verbinden</h3>
+        <p data-lang="en">Go to <strong>Settings → Spotify Connection</strong> in the web UI. You'll need a <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:var(--amber-dark);">Spotify Developer</a> app with:</p>
+        <p data-lang="de">Gehe zu <strong>Einstellungen → Spotify Verbindung</strong> im Webinterface. Du brauchst eine <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:var(--amber-dark);">Spotify Developer</a> App mit:</p>
+        <ul>
+          <li data-lang="en">Your <strong>Client ID</strong> and <strong>Client Secret</strong></li>
+          <li data-lang="de">Deiner <strong>Client ID</strong> und deinem <strong>Client Secret</strong></li>
+          <li data-lang="en">Redirect URI set to <code>http://flockifybox.local:5000/callback</code></li>
+          <li data-lang="de">Redirect URI gesetzt auf <code>http://flockifybox.local:5000/callback</code></li>
+          <li data-lang="en">Your Spotify account added as a user in the Developer Dashboard</li>
+          <li data-lang="de">Dein Spotify-Konto als Benutzer im Developer Dashboard hinzugefügt</li>
+        </ul>
+      </div>
+
+      <div class="step">
+        <h3 data-lang="en">Add Playlists and Enjoy!</h3>
+        <h3 data-lang="de">Playlists hinzufügen und genießen!</h3>
+        <p data-lang="en">Go to the <strong>Playlists</strong> page, paste Spotify playlist or album URLs, and they'll appear as modes on the box. Press the <strong>Next Mode</strong> button to cycle through them.</p>
+        <p data-lang="de">Gehe zur <strong>Playlists</strong>-Seite, füge Spotify-Playlist- oder Album-URLs ein, und sie erscheinen als Modi auf der Box. Drücke den <strong>Nächster Modus</strong> Knopf, um durch sie zu wechseln.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     TROUBLESHOOTING
+     ============================================================ -->
+<section id="troubleshooting">
+  <div class="container">
+    <h2>
+      <span data-lang="en">Troubleshooting</span>
+      <span data-lang="de">Problembehandlung</span>
+    </h2>
+    <p class="section-subtitle" data-lang="en">Common issues and how to fix them.</p>
+    <p class="section-subtitle" data-lang="de">Häufige Probleme und ihre Lösungen.</p>
+
+    <div class="faq-list">
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          <span>
+            <span data-lang="en">Web UI not accessible</span>
+            <span data-lang="de">Webinterface nicht erreichbar</span>
+          </span>
+        </button>
+        <div class="faq-answer"><div class="faq-answer-inner">
+          <p data-lang="en">Check if the Pi is on WiFi: <code>hostname -I</code>. Check the service: <code>sudo systemctl status flockify</code>. Try the IP directly: <code>http://&lt;PI_IP&gt;:5000</code>. If there's no WiFi, connect to the <strong>FlockifyBox</strong> hotspot (password: <code>flockify123</code>) and visit <code>http://192.168.4.1:5000</code>.</p>
+          <p data-lang="de">Prüfe ob der Pi im WiFi ist: <code>hostname -I</code>. Dienst prüfen: <code>sudo systemctl status flockify</code>. IP direkt probieren: <code>http://&lt;PI_IP&gt;:5000</code>. Wenn kein WiFi verfügbar ist, verbinde dich mit dem <strong>FlockifyBox</strong> Hotspot (Passwort: <code>flockify123</code>) und besuche <code>http://192.168.4.1:5000</code>.</p>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          <span>
+            <span data-lang="en">Spotify not playing after power cycle</span>
+            <span data-lang="de">Spotify spielt nach Neustart nicht</span>
+          </span>
+        </button>
+        <div class="faq-answer"><div class="faq-answer-inner">
+          <p data-lang="en">Go to <strong>Settings → Reset Spotify Pairing</strong>. Then open Spotify on your phone, play any track, tap the "Connect to a device" icon, and select <strong>flockifybox</strong>. This establishes a fresh Connect session.</p>
+          <p data-lang="de">Gehe zu <strong>Einstellungen → Spotify-Kopplung zurücksetzen</strong>. Dann öffne Spotify auf deinem Handy, spiele einen beliebigen Titel, tippe auf das "Mit Gerät verbinden" Symbol und wähle <strong>flockifybox</strong>. Dies stellt eine neue Connect-Sitzung her.</p>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          <span>
+            <span data-lang="en">No sound at all</span>
+            <span data-lang="de">Gar kein Ton</span>
+          </span>
+        </button>
+        <div class="faq-answer"><div class="faq-answer-inner">
+          <p data-lang="en">Check audio sinks: <code>pactl list sinks short</code>. Verify the DAC: <code>aplay -l</code> (should show <code>snd_rpi_hifiberry_dac</code>). Check wiring to the MAX98357A amplifier and speaker connections.</p>
+          <p data-lang="de">Audio-Senken prüfen: <code>pactl list sinks short</code>. DAC überprüfen: <code>aplay -l</code> (sollte <code>snd_rpi_hifiberry_dac</code> zeigen). Verkabelung zum MAX98357A Verstärker und Lautsprecheranschlüsse prüfen.</p>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          <span>
+            <span data-lang="en">Display not working</span>
+            <span data-lang="de">Display funktioniert nicht</span>
+          </span>
+        </button>
+        <div class="faq-answer"><div class="faq-answer-inner">
+          <p data-lang="en">Verify SPI is enabled: <code>ls /dev/spidev0.*</code>. Check wiring: DC→GPIO25, RST→GPIO27, BL→GPIO13. Test: <code>python3 -c "from lib.spi_display_lib import SPIDisplay; d = SPIDisplay(); d.init(); d.clear((255,0,0))"</code></p>
+          <p data-lang="de">SPI aktiviert prüfen: <code>ls /dev/spidev0.*</code>. Verkabelung prüfen: DC→GPIO25, RST→GPIO27, BL→GPIO13. Test: <code>python3 -c "from lib.spi_display_lib import SPIDisplay; d = SPIDisplay(); d.init(); d.clear((255,0,0))"</code></p>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          <span>
+            <span data-lang="en">Bluetooth won't connect</span>
+            <span data-lang="de">Bluetooth verbindet sich nicht</span>
+          </span>
+        </button>
+        <div class="faq-answer"><div class="faq-answer-inner">
+          <p data-lang="en">Make sure the target device is in pairing mode. Check Bluetooth is on: <code>bluetoothctl show</code> → look for <code>Powered: yes</code>. Try manually: <code>bluetoothctl scan on</code>, then <code>pair &lt;address&gt;</code>.</p>
+          <p data-lang="de">Stelle sicher, dass das Zielgerät im Kopplungsmodus ist. Bluetooth an: <code>bluetoothctl show</code> → suche nach <code>Powered: yes</code>. Manuell versuchen: <code>bluetoothctl scan on</code>, dann <code>pair &lt;Adresse&gt;</code>.</p>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer>
+  <p>
+    <span data-lang="en">Built with ❤️ for kids who love music. </span>
+    <span data-lang="de">Gebaut mit ❤️ für Kinder, die Musik lieben. </span>
+    <a href="https://github.com/NikBrownTRP/flockify-box" target="_blank">GitHub</a>
+  </p>
+</footer>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script>
+// Language toggle
+function toggleLang() {
+  const html = document.documentElement;
+  const btn = document.querySelector('.lang-toggle');
+  if (html.lang === 'en') {
+    html.lang = 'de';
+    btn.textContent = 'EN 🇬🇧';
+  } else {
+    html.lang = 'en';
+    btn.textContent = 'DE 🇩🇪';
+  }
+  localStorage.setItem('flockify-lang', html.lang);
+}
+
+// Restore saved language
+(function() {
+  const saved = localStorage.getItem('flockify-lang');
+  if (saved === 'de') {
+    document.documentElement.lang = 'de';
+    var btn = document.querySelector('.lang-toggle');
+    if (btn) btn.textContent = 'EN 🇬🇧';
+  }
+})();
+
+// FAQ accordion
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const answer = item.querySelector('.faq-answer');
+  const isOpen = item.classList.contains('open');
+
+  // Close all
+  document.querySelectorAll('.faq-item.open').forEach(function(el) {
+    el.classList.remove('open');
+    el.querySelector('.faq-answer').style.maxHeight = '0';
+  });
+
+  // Open clicked (if wasn't open)
+  if (!isOpen) {
+    item.classList.add('open');
+    answer.style.maxHeight = answer.scrollHeight + 'px';
+  }
+}
+
+// Shopping list checkboxes
+document.querySelectorAll('.check-item input[type="checkbox"]').forEach(function(cb) {
+  cb.addEventListener('change', function() {
+    this.closest('.check-item').classList.toggle('checked', this.checked);
+  });
+});
+</script>
+
+</body>
+</html>
