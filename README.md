@@ -1,429 +1,266 @@
-# Flockify Box
+# Flockify Box 🐯
 
-A Raspberry Pi 5 music player for kids that plays Spotify playlists and web radio, with physical button controls, a small SPI display, and a web-based configuration interface.
+A Raspberry Pi 5 music player built for kids — Spotify playlists, web radio, physical buttons, a tiny SPI display, and a parent-friendly web interface, all in one box.
+
+**[📖 Full Setup Guide & Documentation](docs/index.html)** — interactive page with shopping list, wiring diagrams, and step-by-step instructions (also available in German).
 
 ## Features
 
-- **Spotify Connect** — Play up to 10 Spotify playlists via Raspotify (librespot)
-- **Web Radio** — Stream one configurable web radio station (default: Radino)
+- **Spotify Connect** — Play up to 10 Spotify playlists/albums via Raspotify (librespot) at 320 kbps
+- **Web Radio** — Stream one configurable web radio station (default: Radino) with EBU R128 loudness normalisation
 - **Physical Buttons** — 5 GPIO buttons: volume up/down, next/prev track, next playlist/mode
-- **1.83" SPI Display** — Shows playlist cover art or web radio image, with Bluetooth icon overlay
-- **Web Interface** — Configure playlists, settings, Bluetooth, and schedules from any device on your WiFi
-- **Bluetooth + Wired Audio** — Automatic switching between Bluetooth headphones and wired speakers
-- **Time-based Scheduling** — Nighttime lockout (sleep screen, no music), quiet hours (lower volume/brightness), and normal daytime mode
-- **Bluetooth Management** — Scan, pair, connect, disconnect, and forget Bluetooth devices from the web UI
+- **Power Button** — J2 header for clean shutdown/wake with visual feedback (shutdown tiger screen)
+- **1.83" SPI Display** — Shows playlist covers, boot/sleep/shutdown tiger screens, volume overlay, BT icon
+- **Web Interface** — Dashboard, playlist management, WiFi/Bluetooth/Spotify/schedule configuration
+- **Bluetooth + Wired Audio** — Automatic 5-second switching between BT and MAX98357A I²S amp
+- **Time Schedule** — Night lockout (sleep screen, buttons locked), quiet hours (reduced volume/brightness), day mode
+- **WiFi AP Hotspot** — No known WiFi? The box creates a "FlockifyBox" hotspot for phone-based setup
+- **Auto-Update** — Pulls from GitHub on every boot (fast-forward only, 90s timeout)
+- **Low Power** — CPU powersave governor, HDMI off, WiFi power saving
+- **Idle Dimmer** — Display dims to 20% after 60s of no interaction, restores on button press
+- **Spotify Self-Heal** — Automatic recovery from zombie Connect sessions with pairing reset
 
-## Hardware Requirements
+## Hardware
 
 | Component | Details |
 |-----------|---------|
-| Raspberry Pi 5 | 2GB model (or higher) |
-| SPI Display | 1.83" ST7789 LCD (240x280 pixels) |
-| USB Audio Adapter | For 3.5mm wired speaker output (Pi 5 has no headphone jack) |
-| 5x Momentary Buttons | Connected between GPIO and GND |
+| Raspberry Pi 5 | 2 GB model (or higher) |
+| MicroSD Card | 16 GB+ with Raspberry Pi OS (64-bit, Bookworm/Trixie) |
+| USB-C Power Supply | 5V 3A recommended |
+| SPI Display | 1.83" ST7789 LCD (240x280 pixels, visible area 240x285) |
+| MAX98357A | I²S DAC + Class D amplifier breakout |
+| Speaker | 4–8 Ohm, 3W, connected directly to MAX98357A output |
+| 5x Momentary Buttons | For volume, track, and mode control |
+| 1x Power Button | Momentary pushbutton for Pi 5 J2 header |
+| 10 kΩ Resistor | Pull-down between GPIO 13 and GND (backlight off on shutdown) |
+| Jumper Wires | Female-to-female for GPIO connections |
+| Enclosure | Your choice — wood, 3D print, cardboard |
 | Bluetooth Speaker/Headphones | Optional, for wireless audio |
-| MicroSD Card | 16GB+ with Raspberry Pi OS |
-| Power Supply | USB-C, 5V 3A recommended |
 
 ## GPIO Wiring
 
-Each button connects its GPIO pin to GND when pressed. Internal pull-up resistors are used (no external resistors needed).
+Each button connects its GPIO pin to GND when pressed. Internal pull-up resistors are used.
 
-| Button | GPIO Pin | Header Pin | Function |
-|--------|----------|------------|----------|
+### Buttons
+
+| Button | GPIO | Pin | Function |
+|--------|------|-----|----------|
 | Volume Up | 5 | 29 | Increase volume |
 | Volume Down | 6 | 31 | Decrease volume |
 | Next Track | 16 | 36 | Skip to next track (Spotify only) |
-| Prev Track | 26 | 37 | Go to previous track (Spotify only) |
-| Next Playlist | 12 | 32 | Cycle through playlists + web radio |
+| Prev Track | 26 | 37 | Previous track (Spotify only) |
+| Next Mode | 12 | 32 | Cycle playlists + web radio |
 
-**Pins to avoid** (already in use): GPIO 8, 9, 10, 11 (SPI display), GPIO 13 (display backlight PWM), GPIO 25 (display DC), GPIO 27 (display RST), GPIO 18, 19, 21 (I²S → MAX98357A amp), GPIO 5, 6, 12, 16, 26 (buttons).
+### SPI Display (ST7789)
 
-### MAX98357A Amp Wiring (I²S)
-
-| Amp Pin | GPIO | Header Pin | Notes |
-|---------|------|------------|-------|
-| VIN     | 5V   | 2          | Use pin 2, keep pin 4 free |
-| GND     | GND  | 6          | |
-| BCLK    | 18   | 12         | I²S bit clock |
-| LRC     | 19   | 35         | I²S word-select |
-| DIN     | 21   | 40         | I²S data in |
-| SD/GAIN | —    | —          | Leave NC for default 9 dB gain |
-
-Enable the DAC overlay in `/boot/firmware/config.txt`:
-
-```
-dtparam=i2s=on
-dtoverlay=hifiberry-dac
-# Optional — disable onboard HDMI audio so PipeWire picks the DAC as default:
-# dtparam=audio=off
-```
-
-Reboot; the DAC will appear as an ALSA card (e.g. `snd_rpi_hifiberry_dac`) and PipeWire will expose it as a sink. Flockify's existing audio router treats any non-Bluetooth sink as "wired", so the amp will be used automatically whenever Bluetooth isn't connected.
-
-### SPI Display Wiring
-
-| Display Pin | GPIO | Header Pin |
-|-------------|------|------------|
+| Display Pin | GPIO | Pin |
+|-------------|------|-----|
 | SCK | 11 (SPI0 SCLK) | 23 |
 | SDA (MOSI) | 10 (SPI0 MOSI) | 19 |
 | CS | 8 (SPI0 CE0) | 24 |
 | DC | 25 | 22 |
 | RST | 27 | 13 |
 | BL | 13 (PWM) | 33 |
-| VCC | — | 1 (3.3V) |
-| GND | — | 6 (GND) |
+| VCC | 3.3V | 1 |
+| GND | GND | 6 |
 
-**Required: 10 kΩ pull-down resistor between GPIO 13 (pin 33) and GND (pin 34).**
-Without it, the display backlight stays lit after a J2 soft-off because the
-ST7789 module has an internal pull-up on its BL line and the Pi 5's 3.3 V
-rail remains alive during soft-off. The pull-down unconditionally grounds
-the pin whenever flockify isn't actively driving it; during normal operation
-the GPIO drive current (~16 mA) dominates the ~0.33 mA leakage through the
-resistor so there's no visible brightness loss. Any value 4.7 k–22 kΩ works.
+> **Required:** 10 kΩ pull-down resistor between pin 33 (GPIO 13) and pin 34 (GND). Without it, the display backlight stays on after J2 soft-off. Any value 4.7–22 kΩ works. The resistor legs can piggyback on the existing BL DuPont connector at pin 33.
 
-### Power Button (J2 header)
+### MAX98357A Amplifier (I²S)
 
-Solder a momentary pushbutton across the Pi 5's **J2** (`PWR_BTN`) header
-next to the USB-C socket. Short press while running = clean soft-shutdown;
-short press from halted = wake and boot. No software configuration needed.
-Combined with the pull-down resistor above, the display goes dark
-immediately on shutdown and stays dark through the entire halted state.
+| Amp Pin | GPIO | Pin | Notes |
+|---------|------|-----|-------|
+| VIN | 5V | 2 | Use pin 2, keep pin 4 free |
+| GND | GND | 6 | Shared with display GND |
+| BCLK | 18 | 12 | I²S bit clock |
+| LRC | 19 | 35 | I²S word-select |
+| DIN | 21 | 40 | I²S data in |
+| SD/GAIN | — | — | Leave NC for default 9 dB gain |
+
+### Power Button (J2)
+
+Solder a momentary pushbutton across the Pi 5's **J2** (`PWR_BTN`) header next to the USB-C socket. Short press = clean shutdown (shows goodbye tiger, then display off). Press again from halted = wake and boot.
+
+### Pins in Use
+
+GPIO 5, 6, 8, 9, 10, 11, 12, 13, 16, 18, 19, 21, 25, 26, 27.
 
 ## Installation
 
-### 1. Prepare the Raspberry Pi
+### 1. Flash the SD Card
 
-1. Flash **Raspberry Pi OS (64-bit, Bookworm)** to your MicroSD card using Raspberry Pi Imager
-2. Enable SSH and configure WiFi in the imager settings
-3. Boot the Pi and SSH in: `ssh pi@raspberrypi.local`
+Flash **Raspberry Pi OS (64-bit)** using Raspberry Pi Imager. Enable SSH and configure WiFi in the imager settings.
 
-### 2. Copy the project files
-
-From your Mac/PC, copy the entire project to the Pi:
-
-```bash
-scp -r "/path/to/Flockify Box" pi@raspberrypi.local:~/flockify
-```
-
-### 3. Run the installer
+### 2. Clone and Install
 
 ```bash
 ssh pi@raspberrypi.local
+git clone https://github.com/NikBrownTRP/flockify-box.git ~/flockify
 cd ~/flockify
 sudo bash scripts/install.sh
-```
-
-This will:
-- Install system packages (mpv, PulseAudio, avahi, etc.)
-- Install and configure **Raspotify** (Spotify Connect receiver, device name: `flockifybox`)
-- Create a Python virtual environment with all dependencies
-- Enable SPI interface
-- Set hostname to `flockifybox`
-- Add user `pi` to required groups (spi, gpio, pulse, bluetooth)
-- Install and enable the systemd service
-- Create required directories
-
-### 4. Reboot
-
-```bash
 sudo reboot
 ```
 
-After reboot, the Flockify Box service starts automatically.
+The installer handles: system packages, Raspotify (Spotify Connect at 320 kbps), Python venv, SPI + I²S DAC overlays, hostname (`flockifybox`), user groups, and all systemd services.
 
-## First-Time Setup
+### 3. Enable I²S DAC
 
-### 1. Open the web interface
+The installer adds the overlay automatically. Verify after reboot:
 
-From any device on the same WiFi network, open:
+```bash
+aplay -l   # Should show "snd_rpi_hifiberry_dac"
+```
+
+### 4. Open the Web UI
 
 ```
 http://flockifybox.local:5000
 ```
 
-> If `.local` doesn't resolve, find the Pi's IP address with `hostname -I` on the Pi, then use `http://<IP>:5000`.
+If the Pi has no WiFi connection, it creates a **FlockifyBox** hotspot (password: `flockify123`). Connect your phone and visit `http://192.168.4.1:5000`.
 
-### 2. Connect Spotify
+### 5. Connect Spotify
 
-1. Go to the **Settings** page
-2. You need a **Spotify Developer App**:
-   - Go to [https://developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
-   - Log in with **your** Spotify account (any account, not necessarily the one that will play music)
-   - Click **"Create app"**
-   - App name: `Flockify Box`, description: anything
-   - **Redirect URI**: `http://127.0.0.1:5000/callback`
-   - Select **Web API**
-   - Save the app
-3. Copy the **Client ID** and **Client Secret** from the app dashboard
-4. Enter them on the Settings page and click **"Connect to Spotify"**
+1. Create a [Spotify Developer App](https://developer.spotify.com/dashboard)
+2. Set redirect URI to `http://flockifybox.local:5000/callback`
+3. Add your Spotify account as a user in the Developer Dashboard
+4. Enter Client ID + Secret in **Settings → Spotify Connection**
+5. Complete the OAuth flow
 
-> **Important**: The OAuth redirect uses `127.0.0.1`, so you need to do this step either:
-> - From a browser **on the Pi itself** (e.g., via VNC), or
-> - Via SSH port forwarding: `ssh -L 5000:127.0.0.1:5000 pi@flockifybox.local`, then open `http://127.0.0.1:5000/settings` on your computer
+### 6. Add Playlists
 
-5. When redirected to Spotify, log in with the **account that will play music** (e.g., your daughter's account). This is the account whose playlists will be available.
-6. After authorization, you'll be redirected back. The refresh token is saved automatically.
+Go to the **Playlists** page, paste Spotify playlist/album URLs (up to 10), and press the mode button to cycle through them.
 
-### 3. Add Playlists
+## Display Screens
 
-1. Go to the **Playlists** page
-2. Paste a Spotify playlist URL (e.g., `https://open.spotify.com/playlist/37i9dQZF1DX6z20IXmBjWI`) and click **Add**
-3. Add up to 10 playlists
-4. Configure the web radio station name and stream URL (default: Radino)
+| Screen | Image | When Shown |
+|--------|-------|------------|
+| Boot | `boot_tiger.png` | Power on → first ~15s of boot |
+| Sleep | `sleep_tiger.png` | Night period (schedule active) |
+| Shutdown | `shutdown_tiger.png` | J2 press → 1.5s → display off |
+| Playlist cover | Downloaded from Spotify | During Spotify playback |
+| Radino | `radino.png` | During web radio playback |
 
-### 4. Pair Bluetooth (optional)
+The boot splash service (`flockify-boot-splash`) shows the boot tiger very early in the boot sequence. During night hours, it automatically shows the sleep tiger at 5% brightness instead — no bright flash in the bedroom.
 
-1. Go to the **Settings** page, scroll to **Bluetooth**
-2. Put your Bluetooth speaker/headphones in pairing mode
-3. Click **"Scan for Devices"** — wait ~8 seconds
-4. Click **"Pair"** next to your device
-5. Audio will automatically switch to Bluetooth when connected
+## Audio Architecture
 
-### 5. Configure Schedule (optional)
+Both players (librespot + mpv) run at internal unity volume. The user's volume knob controls a single gain stage — the PipeWire default-sink volume — keeping the full signal amplitude through the digital path.
 
-1. On the **Settings** page, enable the **Schedule**
-2. Set your time periods:
-   - **Nighttime**: e.g., 20:00 to 06:00 — display shows sleep screen, all buttons locked, no music
-   - **Wake-up**: e.g., 06:00 to 07:00 — music allowed at reduced volume
-   - **Go-to-bed**: e.g., 19:00 to 20:00 — music allowed at reduced volume
-3. Adjust quiet volume/backlight and night backlight levels
-4. Click **Save Schedule**
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `max_output_percent` | 60 | Kid-safe ceiling: knob=100 → sink at 60% |
+| `webradio_volume` | 25 | Trims mpv to match Spotify's normalised level |
+| `LIBRESPOT_FORMAT` | F32 | Float32 output avoids S16 hard-clipping on normalisation |
+| `LIBRESPOT_BITRATE` | 320 | Maximum Spotify quality |
+| `LIBRESPOT_NORMALISATION_METHOD` | basic | Per-track gain, no limiter compression |
+| `LIBRESPOT_NORMALISATION_PREGAIN` | -3 | Headroom to prevent clipping |
+| mpv `loudnorm` filter | I=-16:TP=-1.5 | EBU R128 normalisation for webradio streams |
 
-## How It Works
+## Systemd Services
 
-### Mode Cycling
-
-The "Next Playlist" button cycles through all configured modes in order:
-
-```
-Playlist 1 → Playlist 2 → ... → Playlist N → Web Radio → Playlist 1
-```
-
-### Audio Routing
-
-- **Bluetooth connected**: Audio plays through Bluetooth (BT icon shown on display)
-- **Bluetooth disconnected**: Audio automatically switches to wired speakers (USB audio adapter)
-- The system monitors Bluetooth connectivity every 5 seconds and switches seamlessly
-
-### Time Schedule (if enabled)
-
-| Period | Behavior |
-|--------|----------|
-| Night | Sleep screen on display, all buttons locked, playback stopped |
-| Quiet (wake-up/bedtime) | Music plays, volume capped at quiet max, display dimmer |
-| Day | Normal operation, full volume and brightness |
+| Service | Type | Purpose |
+|---------|------|---------|
+| `flockify.service` | simple | Main music player app |
+| `flockify-boot-splash.service` | oneshot | Early SPI display boot image |
+| `flockify-wifi-ap.service` | oneshot | WiFi hotspot if no known network |
+| `flockify-update.service` | oneshot | Auto-update from GitHub on boot |
+| `flockify-lowpower.service` | oneshot | CPU powersave + WiFi power saving |
+| `raspotify.service` + override | simple | Spotify Connect (librespot) |
 
 ## File Structure
 
 ```
 flockify/
-├── flockify.py              # Main entry point
+├── flockify.py              # Main entry point + shutdown handler
 ├── config_manager.py        # JSON config with atomic saves
 ├── config_default.json      # Default configuration template
-├── audio_router.py          # PulseAudio BT/wired switching
-├── spotify_manager.py       # Spotify Web API (spotipy)
-├── state_machine.py         # Central coordinator
-├── display_manager.py       # SPI display + BT icon overlay
-├── button_controller.py     # 5 GPIO buttons
+├── audio_router.py          # PipeWire BT/wired switching
+├── spotify_manager.py       # Spotify Web API + self-heal + reset pairing
+├── state_machine.py         # Central coordinator (modes, volume, schedule)
+├── display_manager.py       # SPI display + BT icon + volume overlay
+├── button_controller.py     # 5 GPIO buttons (gpiod)
 ├── bluetooth_manager.py     # bluetoothctl wrapper
-├── time_scheduler.py        # Night/quiet/day scheduling
+├── wifi_manager.py          # nmcli wrapper (scan, connect, AP, forget)
+├── time_scheduler.py        # Night/quiet/day period scheduling
+├── idle_dimmer.py           # Display dim after 60s idle
+├── webradio_player.py       # mpv streaming with loudnorm filter
 ├── web/
-│   ├── app.py               # Flask web server + REST API
-│   ├── templates/            # HTML pages (dashboard, playlists, settings)
-│   └── static/               # CSS + JavaScript
+│   ├── app.py               # Flask server + REST API
+│   ├── templates/           # Dashboard, playlists, settings pages
+│   └── static/              # CSS + JavaScript
 ├── lib/
-│   ├── webradio_player.py   # mpv-based audio streaming
-│   ├── spi_display_lib.py   # ST7789 SPI display driver
-│   └── rpi_button_script.py # GPIO button handler (gpiod)
+│   └── spi_display_lib.py   # ST7789 SPI display driver (F32-capable)
 ├── images/
-│   ├── radino.png           # Default web radio image
+│   ├── boot_tiger.png       # Boot splash (cheerful tiger)
+│   ├── sleep_tiger.png      # Night mode (tiger with teddy)
+│   ├── shutdown_tiger.png   # Shutdown feedback (waving goodbye)
+│   ├── radino.png           # Web radio station image
 │   ├── bluetooth_icon.png   # BT overlay icon
+│   ├── volume/              # Volume overlay speaker frames
 │   └── cache/               # Downloaded Spotify cover art
-├── scripts/install.sh       # System installer
-├── systemd/flockify.service # Auto-start service
+├── scripts/
+│   ├── install.sh           # System installer
+│   ├── wifi-ap.sh           # WiFi AP hotspot boot script
+│   ├── show_boot_splash.py  # Early boot display (schedule-aware)
+│   └── flockify-backlight-off  # systemd-shutdown display cleanup
+├── systemd/                 # All .service files + raspotify override
+├── docs/
+│   └── index.html           # Project intro page (EN/DE, GitHub Pages)
+├── tests/                   # 166 pytest tests (runs without Pi hardware)
 └── requirements.txt         # Python dependencies
-```
-
-## Manual Control
-
-```bash
-# Start the service
-sudo systemctl start flockify
-
-# Stop the service
-sudo systemctl stop flockify
-
-# View live logs
-journalctl -u flockify -f
-
-# Run in development mode (no GPIO/SPI hardware)
-python3 flockify.py --no-hardware
 ```
 
 ## Troubleshooting
 
 ### Web UI not accessible
-- Check the Pi is on WiFi: `hostname -I`
-- Check the service is running: `sudo systemctl status flockify`
-- Try the IP address directly: `http://<PI_IP>:5000`
+- No WiFi? Connect to the **FlockifyBox** hotspot (pw: `flockify123`) → `http://192.168.4.1:5000`
+- Check service: `sudo systemctl status flockify`
+- Try IP directly: `hostname -I` on the Pi → `http://<IP>:5000`
 
 ### No sound
-- Check PulseAudio: `pactl info`
-- List audio sinks: `pactl list sinks short`
-- Check USB audio adapter is connected: `aplay -l`
+- Check sinks: `pactl list sinks short`
+- Verify DAC: `aplay -l` (should show `snd_rpi_hifiberry_dac`)
+- Check wiring to MAX98357A and speaker
 
-### Spotify not working
-- Verify Raspotify is running: `sudo systemctl status raspotify`
-- Check Spotify credentials in web UI Settings page
-- Ensure the Spotify account has an active Premium subscription
-- The Raspotify device may take a few seconds to appear after boot
-
-### Spotify playback stuck — no audio, but the box thinks it's playing
-
-**Symptom**: Box is in Spotify mode, but no audio comes out. Switching
-tracks or playlists does nothing. Webradio still works fine. The journal
-shows `HTTP Error ... returned 404 due to Device not found` and/or
-`HTTP Error ... 429 ... too many 502 error responses`.
-
-**Cause**: librespot is in a "zombie Connect session" — it's running
-and visible to the Spotify Web API, but the Spotify Connect session it
-joined has no active device, so every `start_playback` / `transfer_playback`
-call routes to a phantom owner and returns 5xx. Spotify then auto-throttles
-the client ID, producing 429s. Restarting raspotify alone does NOT fix it;
-you need a fresh pairing.
-
-**Recovery — easy path**:
-1. Open the Flockify web UI → **Settings** → Spotify Connection
-2. Click **Reset Spotify Pairing** → confirm the prompt
-3. On your phone, fully close Spotify (swipe it away), reopen it
-4. Play any track on the phone
-5. Tap the "Connect to a device" icon → select **flockifybox**
-6. Audio should transfer to the box immediately, and flockify's Spotify
-   mode is now working again
-
-**Recovery — manual path over SSH** (if the web UI isn't available):
-```bash
-sudo systemctl stop raspotify
-sudo rm -f /var/lib/raspotify/credentials.json /var/cache/raspotify/volume
-sudo systemctl start raspotify
-# Then re-pair from your phone as in steps 3-5 above.
-```
-
-**Automatic recovery**: flockify tracks stuck-session failures in a
-10-minute rolling window. After 3 failures it automatically performs
-the credential wipe above and shows a "Re-pair from Spotify app" prompt
-on the display. The box is still usable for webradio in the meantime.
-
-**Why this happens**: the most common trigger is restarting raspotify
-repeatedly (e.g. during configuration changes). Each restart re-joins
-the Connect session, and occasionally it lands in a state where the
-session's "active device" slot is empty. Spotify won't clear the stale
-session state on its own — only a fresh pairing does.
-
-### Bluetooth won't pair
-- Ensure the target device is in pairing mode
-- Check Bluetooth is powered on: `bluetoothctl show` → look for `Powered: yes`
-- Try manually: `bluetoothctl scan on`, then `pair <address>`
+### Spotify playback stuck (no audio, 404/429 errors)
+1. **Web UI fix**: Settings → **Reset Spotify Pairing** → re-pair from phone
+2. **SSH fix**: `sudo systemctl stop raspotify && sudo rm -f /var/lib/raspotify/credentials.json && sudo systemctl start raspotify` → re-pair from phone
+3. **Automatic**: after 10 failures, flockify auto-resets and prompts for re-pairing
 
 ### Display not working
-- Verify SPI is enabled: `ls /dev/spidev0.*` (should show `spidev0.0`)
-- Check wiring: DC→GPIO25, RST→GPIO27, BL→GPIO13
-- Test display separately: `python3 -c "from lib.spi_display_lib import SPIDisplay; d = SPIDisplay(); d.init(); d.clear((255,0,0))"`
+- SPI enabled? `ls /dev/spidev0.*`
+- Wiring: DC→GPIO25, RST→GPIO27, BL→GPIO13
+- Test: `python3 -c "from lib.spi_display_lib import SPIDisplay; d = SPIDisplay(); d.init(); d.clear((255,0,0))"`
 
-## Auto-update from GitHub
+### Bluetooth won't connect
+- Target device in pairing mode?
+- `bluetoothctl show` → `Powered: yes`?
+- Manual: `bluetoothctl scan on` → `pair <address>`
 
-The box checks for updates from GitHub on every boot (before the music player starts). If new commits are available on the `main` branch, they're pulled automatically. If `requirements.txt` changed, Python dependencies are reinstalled.
+## Auto-Update
 
-- **Trigger**: On boot, via `flockify-update.service` (runs before `flockify.service`)
-- **Branch**: `main` only
-- **Merge strategy**: Fast-forward only (never creates merge commits, refuses on divergence)
-- **Timeout**: 90 seconds — if GitHub is unreachable, the box boots with the existing code
-- **Auth**: SSH deploy key (read-only) generated during install
-
-### First-time setup
-
-After running `install.sh`, the script generates an SSH deploy key and prints its public key. You need to add it to the GitHub repo:
-
-1. Copy the public key printed by the installer
-2. Go to [https://github.com/NikBrownTRP/flockify-box/settings/keys/new](https://github.com/NikBrownTRP/flockify-box/settings/keys/new)
-3. Title: `flockifybox-pi`
-4. Paste the key
-5. Leave **"Allow write access"** unchecked (read-only is safer)
-6. Click **Add key**
-
-The next reboot will successfully pull updates.
-
-### Verifying auto-update
+Pulls from GitHub `main` branch on every boot via `flockify-update.service`. Fast-forward only, 90s timeout. Requires a read-only SSH deploy key added to the GitHub repo (generated during install).
 
 ```bash
-# View last update attempt
+# View last update
 sudo journalctl -u flockify-update -n 50
 
 # Trigger manually
 sudo systemctl start flockify-update
 
-# Check the deploy key works
-sudo -u pi ssh -T git@github.com
-```
-
-### Disabling auto-update
-
-```bash
+# Disable
 sudo systemctl disable flockify-update
 ```
 
-The box will still run normally — updates just become manual (`cd /home/pi/flockify && git pull`).
-
-## Low Power Mode
-
-The install script enables low power mode automatically to reduce heat and power consumption during long music sessions. Optimizations:
-
-- **CPU governor**: `powersave` (pins to minimum frequency, only ramps up when needed)
-- **HDMI output**: disabled (saves ~150mW, not needed for headless music box)
-- **WiFi power saving**: enabled
-- **Raspotify bitrate**: 96 kbps (still fine quality for kids' music on a small speaker)
-- **Relaxed polling intervals**: Bluetooth monitor 10s, time scheduler 60s
-
-### Verifying low power mode
-
-Run these on the Pi after boot:
+## Testing
 
 ```bash
-# Check CPU governor (should print "powersave" for each core)
-cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-
-# Check CPU frequency (should be at minimum ~600000 kHz when idle)
-cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq
-
-# Check throttling status (should be 0x0 = no throttling)
-vcgencmd get_throttled
-
-# Check CPU temperature
-vcgencmd measure_temp
-
-# Check WiFi power saving
-iw dev wlan0 get power_save
-
-# Check low power service status
-sudo systemctl status flockify-lowpower
-```
-
-### Re-enabling HDMI (e.g., for debugging)
-
-```bash
-vcgencmd display_power 1
-```
-
-### Disabling low power mode
-
-```bash
-sudo systemctl disable --now flockify-lowpower
-sudo reboot
+python3 -m pytest tests/ -v   # 166 tests, runs on macOS without Pi hardware
 ```
 
 ## Dependencies
 
-**System packages**: python3, libmpv, pulseaudio, pulseaudio-module-bluetooth, avahi-daemon, raspotify
+**System**: python3, libmpv, pulseaudio, pulseaudio-module-bluetooth, avahi-daemon, raspotify, NetworkManager
 
-**Python packages**: flask, spotipy, python-mpv, pulsectl, requests, Pillow, numpy, gpiod, lgpio, spidev
+**Python**: flask, spotipy, python-mpv, pulsectl, requests, Pillow, numpy, lgpio, spidev
