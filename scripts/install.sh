@@ -210,6 +210,20 @@ echo "    - WiFi power saving: enabled"
 echo "    - Raspotify bitrate: 320 kbps"
 
 # =============================================================================
+# Step 11b3: Install WiFi AP hotspot service
+# =============================================================================
+echo ">>> Step 11b3: Installing WiFi AP hotspot service..."
+
+chmod +x "$INSTALL_DIR/scripts/wifi-ap.sh"
+cp "$INSTALL_DIR/systemd/flockify-wifi-ap.service" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable flockify-wifi-ap.service
+
+echo "    WiFi AP hotspot service installed and enabled."
+echo "    If no known WiFi connects within 30s of boot, the box creates"
+echo "    a 'FlockifyBox' hotspot for WiFi configuration via the web UI."
+
+# =============================================================================
 # Step 11c: Install auto-update service + generate deploy key
 # =============================================================================
 echo ">>> Step 11c: Installing auto-update service..."

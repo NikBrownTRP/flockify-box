@@ -1,0 +1,21 @@
+[Unit]
+Description=Flockify Box WiFi AP (hotspot if no known WiFi)
+# Run after NetworkManager is up so nmcli works, but before
+# network-online.target so the AP's 192.168.4.1 address satisfies
+# downstream services that need "a network" (including flockify).
+After=NetworkManager.service
+Before=network-online.target
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/pi/flockify/scripts/wifi-ap.sh
+# Tear down the AP cleanly on shutdown. The - prefix makes failure
+# non-fatal (AP may not be running).
+ExecStop=-/usr/bin/nmcli connection down FlockifyAP
+RemainAfterExit=yes
+# The 30s wait + AP creation can take up to ~40s.
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target

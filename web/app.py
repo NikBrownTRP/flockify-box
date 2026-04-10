@@ -20,16 +20,18 @@ config_manager = None
 spotify_manager = None
 display_manager = None
 bluetooth_manager = None
+wifi_manager = None
 
 
-def init_app(sm, cm, spm, dm=None, bm=None):
+def init_app(sm, cm, spm, dm=None, bm=None, wm=None):
     """Initialize app with references to subsystems."""
-    global state_machine, config_manager, spotify_manager, display_manager, bluetooth_manager
+    global state_machine, config_manager, spotify_manager, display_manager, bluetooth_manager, wifi_manager
     state_machine = sm
     config_manager = cm
     spotify_manager = spm
     display_manager = dm
     bluetooth_manager = bm
+    wifi_manager = wm
 
 
 # ------------------------------------------------------------------
@@ -103,6 +105,8 @@ def settings_page():
     if bluetooth_manager:
         bt_connected = bluetooth_manager.get_connected_device()
         bt_paired = bluetooth_manager.get_paired_devices()
+    wifi_status = wifi_manager.get_status() if wifi_manager else {}
+    wifi_saved = wifi_manager.get_saved_networks() if wifi_manager else []
     return render_template('settings.html',
                            config=config,
                            spotify_configured=spotify_configured,
@@ -110,7 +114,9 @@ def settings_page():
                            spotify_connected=spotify_connected,
                            device_name=device_name,
                            bt_connected=bt_connected,
-                           bt_paired=bt_paired)
+                           bt_paired=bt_paired,
+                           wifi_status=wifi_status,
+                           wifi_saved=wifi_saved)
 
 
 @app.route('/callback')
@@ -316,6 +322,65 @@ def api_spotify_reset_pairing():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ------------------------------------------------------------------
+# WiFi API
+# ------------------------------------------------------------------
+
+@app.route('/api/wifi/status')
+def api_wifi_status():
+    """Return current WiFi state + AP active flag."""
+    if not wifi_manager:
+        return jsonify({'error': 'WiFi manager not initialized'}), 503
+    return jsonify(wifi_manager.get_status())
+
+
+@app.route('/api/wifi/scan', methods=['POST'])
+def api_wifi_scan():
+    """Scan for available WiFi networks."""
+    if not wifi_manager:
+        return jsonify({'error': 'WiFi manager not initialized'}), 503
+    try:
+        networks = wifi_manager.scan()
+        return jsonify({'ok': True, 'networks': networks})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/wifi/connect', methods=['POST'])
+def api_wifi_connect():
+    """Connect to a WiFi network. Body: {ssid, password}."""
+    if not wifi_manager:
+        return jsonify({'error': 'WiFi manager not initialized'}), 503
+    data = request.get_json(force=True)
+    ssid = data.get('ssid', '').strip()
+    password = data.get('password', '').strip()
+    if not ssid:
+        return jsonify({'error': 'SSID is required'}), 400
+    result = wifi_manager.connect(ssid, password)
+    if result['ok']:
+        return jsonify(result)
+    return jsonify(result), 500
+
+
+@app.route('/api/wifi/networks', methods=['GET'])
+def api_wifi_saved():
+    """List saved/known WiFi networks."""
+    if not wifi_manager:
+        return jsonify({'error': 'WiFi manager not initialized'}), 503
+    return jsonify({'networks': wifi_manager.get_saved_networks()})
+
+
+@app.route('/api/wifi/networks/<name>', methods=['DELETE'])
+def api_wifi_forget(name):
+    """Forget a saved WiFi network."""
+    if not wifi_manager:
+        return jsonify({'error': 'WiFi manager not initialized'}), 503
+    result = wifi_manager.forget_network(name)
+    if result['ok']:
+        return jsonify(result)
+    return jsonify(result), 500
 
 
 @app.route('/api/next_mode', methods=['POST'])

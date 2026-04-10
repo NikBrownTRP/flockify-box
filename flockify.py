@@ -16,6 +16,7 @@ from display_manager import DisplayManager
 from spotify_manager import SpotifyManager
 from state_machine import StateMachine
 from bluetooth_manager import BluetoothManager
+from wifi_manager import WiFiManager
 from time_scheduler import TimeScheduler
 from idle_dimmer import IdleDimmer
 from lib.webradio_player import WebRadioPlayer
@@ -322,9 +323,19 @@ def main():
         bluetooth_mgr = None
 
     # ------------------------------------------------------------------
+    # 8d. Init WiFiManager
+    # ------------------------------------------------------------------
+    try:
+        wifi_mgr = WiFiManager()
+        print("[flockify] WiFi manager initialized")
+    except Exception as e:
+        print(f"[flockify] WARNING: WiFi manager init failed: {e}")
+        wifi_mgr = None
+
+    # ------------------------------------------------------------------
     # 9. Init Flask web server
     # ------------------------------------------------------------------
-    init_app(state_machine, config_manager, spotify_manager, display_manager, bluetooth_mgr)
+    init_app(state_machine, config_manager, spotify_manager, display_manager, bluetooth_mgr, wifi_mgr)
 
     flask_thread = threading.Thread(
         target=lambda: app.run(

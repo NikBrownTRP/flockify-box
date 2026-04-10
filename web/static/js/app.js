@@ -349,6 +349,110 @@
     };
 
     // ------------------------------------------------------------------
+    // WiFi
+    // ------------------------------------------------------------------
+
+    window.scanWifi = function () {
+        var btn = document.getElementById('btn-wifi-scan');
+        var status = document.getElementById('wifi-scan-status');
+        var results = document.getElementById('wifi-scan-results');
+        if (btn) btn.disabled = true;
+        if (status) status.style.display = '';
+        if (results) results.style.display = 'none';
+
+        api('POST', '/api/wifi/scan').then(function (data) {
+            if (status) status.style.display = 'none';
+            if (btn) btn.disabled = false;
+            if (!data.networks || !data.networks.length) {
+                if (results) {
+                    results.innerHTML = '<p style="color:#888;">No networks found</p>';
+                    results.style.display = '';
+                }
+                return;
+            }
+            var html = '';
+            data.networks.forEach(function (net) {
+                var bars = net.signal > 75 ? '▂▄▆█' : net.signal > 50 ? '▂▄▆_' : net.signal > 25 ? '▂▄__' : '▂___';
+                var sec = net.security || 'Open';
+                var inUse = net.in_use ? ' <span class="badge badge-green" style="font-size:0.75em;">Connected</span>' : '';
+                html += '<div class="bt-device-row" style="flex-wrap:wrap;">' +
+                    '<span class="bt-device-name">' + net.ssid + inUse + '</span>' +
+                    '<span style="color:#888;font-size:0.85em;margin-right:8px;">' + bars + ' ' + sec + '</span>' +
+                    '<button class="btn btn-primary btn-sm" onclick="showWifiPassword(\'' +
+                        net.ssid.replace(/'/g, "\\'") + '\', this)">Connect</button>' +
+                    '<div class="wifi-pw-form" style="display:none;width:100%;margin-top:8px;">' +
+                        '<input type="password" class="input" placeholder="Password" style="margin-bottom:4px;">' +
+                        '<button class="btn btn-primary btn-sm" onclick="connectWifi(\'' +
+                            net.ssid.replace(/'/g, "\\'") + '\', this)">Join</button>' +
+                    '</div>' +
+                    '</div>';
+            });
+            if (results) {
+                results.innerHTML = html;
+                results.style.display = '';
+            }
+        }).catch(function (err) {
+            if (status) status.style.display = 'none';
+            if (btn) btn.disabled = false;
+            showError('wifi-error', err.message);
+        });
+    };
+
+    window.showWifiPassword = function (ssid, btn) {
+        var row = btn.closest('.bt-device-row');
+        var form = row.querySelector('.wifi-pw-form');
+        if (form) {
+            form.style.display = form.style.display === 'none' ? '' : 'none';
+            var input = form.querySelector('input');
+            if (input) input.focus();
+        }
+    };
+
+    window.connectWifi = function (ssid, btn) {
+        var form = btn.closest('.wifi-pw-form');
+        var input = form.querySelector('input');
+        var password = input ? input.value : '';
+
+        // Show connecting message immediately — the HTTP connection may
+        // drop if we're on the AP and it gets torn down.
+        var results = document.getElementById('wifi-scan-results');
+        if (results) {
+            results.innerHTML = '<div style="padding:16px;text-align:center;">' +
+                '<p><strong>Connecting to ' + ssid + '...</strong></p>' +
+                '<p style="color:#888;margin-top:8px;">If successful, this page will stop responding.<br>' +
+                'Connect your phone to <strong>' + ssid + '</strong> and visit<br>' +
+                '<strong>http://flockifybox.local:5000</strong> to continue.</p>' +
+                '</div>';
+        }
+
+        // Fire-and-forget — we may lose the connection.
+        fetch('/api/wifi/connect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ssid: ssid, password: password})
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.ok) {
+                showSuccess('wifi-success', 'Connected to ' + ssid + '!');
+                setTimeout(function () { window.location.reload(); }, 3000);
+            } else {
+                showError('wifi-error', data.error || 'Connection failed');
+                scanWifi(); // refresh the list
+            }
+        }).catch(function () {
+            // Expected when AP is torn down — connection lost is success.
+        });
+    };
+
+    window.forgetWifi = function (name) {
+        if (!confirm('Forget network "' + name + '"?')) return;
+        api('DELETE', '/api/wifi/networks/' + encodeURIComponent(name)).then(function () {
+            window.location.reload();
+        }).catch(function (err) {
+            showError('wifi-error', err.message);
+        });
+    };
+
+    // ------------------------------------------------------------------
     // Settings — Slider value display updates
     // ------------------------------------------------------------------
 
