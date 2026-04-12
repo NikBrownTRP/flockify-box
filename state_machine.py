@@ -318,7 +318,7 @@ class StateMachine:
         `max_output_percent` (default 60) caps the sink volume so
         knob=100 maps to a kid-safe ceiling.
         """
-        ceiling = int(self.config.get('max_output_percent', 60))
+        ceiling = int(self.config.get('max_output_percent', 72))
         scaled = max(0, min(100, int(round(volume * ceiling / 100))))
         try:
             import subprocess
