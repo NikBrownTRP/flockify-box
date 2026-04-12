@@ -81,6 +81,13 @@ def _monitor_power_button():
                                 display_manager.display.clear((0, 0, 0))
                         except Exception as e:
                             print(f"[power-button] Error blanking: {e}")
+                    # Trigger the actual shutdown. We do this explicitly
+                    # rather than relying on systemd-logind's HandlePowerKey
+                    # because our read of /dev/input/event0 may consume
+                    # the event before logind sees it.
+                    import subprocess as _sp
+                    print("[power-button] Triggering shutdown...")
+                    _sp.Popen(["sudo", "systemctl", "poweroff"])
     except FileNotFoundError:
         print("[power-button] /dev/input/event0 not found — power button monitor disabled")
     except PermissionError:
