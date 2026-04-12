@@ -17,7 +17,7 @@ bitrate: 320
 volume_steps: 100
 initial_volume: 100
 
-normalisation_disabled: false
+normalisation_disabled: true
 normalisation_pregain: -3
 
 server:
