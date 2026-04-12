@@ -1,67 +1,39 @@
-import subprocess
-import time
-
 import requests
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
-# When Spotify returns 429, all Spotify API calls are silently no-op'd
-# for this many seconds. 120 s is long enough that Spotify's backend
-# throttle clears, but short enough that the user can retry manually
-# by pressing a button after a couple of minutes.
-_RATE_LIMIT_BACKOFF_SEC = 120
+GO_LIBRESPOT_URL = "http://127.0.0.1:3678"
 
-# Boot grace period: for this many seconds after SpotifyManager is
-# constructed, we do NOT auto-escalate failures to a credential wipe.
-# Cold boot is a normal scenario where the Web API takes 30+ seconds
-# to see the device — not a stuck session that needs repair.
-_BOOT_GRACE_SEC = 300
-
-# Auto-escalation: after the boot grace period, this many consecutive
-# play_playlist() failures within the window trigger a credential wipe.
-# Set HIGH so only truly stuck sessions trigger it, not normal retries.
-_ESCALATION_FAILURE_THRESHOLD = 10
-_ESCALATION_WINDOW_SEC = 600
-
-
-SCOPES = (
-    "user-read-playback-state "
-    "user-modify-playback-state "
-    "playlist-read-private "
-    "user-read-currently-playing"
-)
+SCOPES = "playlist-read-private"
 
 TOKEN_CACHE_PATH = ".spotify_token_cache"
 
 
 class SpotifyManager:
-    """Spotify Web API integration using spotipy."""
+    """Spotify integration: go-librespot for playback, spotipy for metadata."""
 
     def __init__(self, config_manager):
         self.config = config_manager
         self.sp = None
-        self._device_id = None
-        self._rate_limit_until = 0.0
-        self._boot_time = time.monotonic()
-        # Rolling list of stuck-session failure timestamps. Cleared on
-        # any successful play_playlist() and when reset_pairing() runs.
-        self._stuck_failures = []
-        # Set True while the box is waiting for the user to re-pair from
-        # their Spotify app after an auto-escalation or manual reset.
-        # Surfaced via is_waiting_for_pairing() so display_manager / the
-        # web UI can show a prompt.
-        self._waiting_for_pairing = False
-        # Optional callback fired the moment auto-escalation decides a
-        # re-pair is needed. flockify.py wires this to display_manager
-        # so a "Re-pair from Spotify app" image can flash up on the
-        # SPI panel without any polling.
-        self.on_pairing_required = None
 
         if self.is_configured():
             try:
                 self._init_client()
             except Exception as e:
                 print(f"[SpotifyManager] Failed to initialize client: {e}")
+
+    # ── Local API helper ───────────────────────────────────────────
+
+    def _local_post(self, path, json=None):
+        """POST to go-librespot local API. Returns True on success."""
+        try:
+            r = requests.post(f"{GO_LIBRESPOT_URL}{path}", json=json, timeout=5)
+            return r.status_code < 300
+        except Exception as e:
+            print(f"[SpotifyManager] go-librespot API error: {e}")
+            return False
+
+    # ── Credential / config helpers (spotipy) ──────────────────────
 
     def is_configured(self):
         """Return True if client_id, client_secret, and refresh_token are all set."""
@@ -81,25 +53,19 @@ class SpotifyManager:
         """Clear refresh token + token cache. Keeps client_id/secret for re-auth."""
         import os
         spotify = self.config.get("spotify", {})
-        client_id = spotify.get("client_id", "")
-        client_secret = spotify.get("client_secret", "")
-        # Overwrite with empty refresh_token
         spotify["refresh_token"] = ""
         self.config.set("spotify", spotify)
-        # Delete token cache file
         try:
             if os.path.exists(TOKEN_CACHE_PATH):
                 os.remove(TOKEN_CACHE_PATH)
         except OSError as e:
             print(f"[SpotifyManager] Could not delete token cache: {e}")
         self.sp = None
-        self._device_id = None
 
     def clear_credentials(self):
         """Fully clear Spotify credentials (client_id, secret, refresh_token)."""
         import os
         self.config.update_spotify_credentials("", "", refresh_token="")
-        # update_spotify_credentials doesn't clear refresh_token if empty, so force-set it
         spotify = self.config.get("spotify", {})
         spotify["refresh_token"] = ""
         self.config.set("spotify", spotify)
@@ -109,7 +75,6 @@ class SpotifyManager:
         except OSError as e:
             print(f"[SpotifyManager] Could not delete token cache: {e}")
         self.sp = None
-        self._device_id = None
 
     def reauth_url(self):
         """Return a fresh Spotify authorization URL using saved credentials."""
@@ -139,12 +104,6 @@ class SpotifyManager:
             open_browser=False,
             cache_path=TOKEN_CACHE_PATH,
         )
-        # retries=0 disables spotipy's internal retry loop on 429/5xx.
-        # Without this, one 429 triggers 4 internal HTTP requests
-        # (default retries=3), which amplifies rate-limiting instead
-        # of cooling it down. Status_forcelist=() tells spotipy not
-        # to auto-retry on any status codes at all — we handle retries
-        # in our own logic with proper backoff tracking.
         self.sp = spotipy.Spotify(
             auth_manager=auth_manager,
             retries=0,
@@ -197,385 +156,66 @@ class SpotifyManager:
             print(f"[SpotifyManager] OAuth callback failed: {e}")
             return False
 
-    def _rate_limited(self):
-        """True if we're inside a 429 backoff window."""
-        return time.monotonic() < self._rate_limit_until
+    # ── Playback control (go-librespot local API) ──────────────────
 
-    def _note_rate_limit(self, e):
-        """Record a 429 response and return True if it was a 429."""
-        if getattr(e, "http_status", None) == 429:
-            self._rate_limit_until = time.monotonic() + _RATE_LIMIT_BACKOFF_SEC
-            print(f"[SpotifyManager] Rate limited (429) — backing off for {_RATE_LIMIT_BACKOFF_SEC}s")
-            return True
-        return False
-
-    def is_waiting_for_pairing(self):
-        """True if the box is waiting for the user to re-pair Spotify."""
-        return self._waiting_for_pairing
-
-    def clear_pairing_prompt(self):
-        """Called when we detect that a new Connect session has been
-        successfully established (play_playlist succeeded). Clears the
-        'please re-pair' prompt and resets the failure window."""
-        if self._waiting_for_pairing:
-            print("[SpotifyManager] Pairing prompt cleared — playback is working")
-        self._waiting_for_pairing = False
-        self._stuck_failures = []
-
-    def reset_pairing(self):
-        """Wipe librespot credentials and restart raspotify so the box
-        re-enters zeroconf-pairable state.
-
-        Used by:
-          - The 'Reset Spotify Pairing' web UI button
-          - Auto-escalation from play_playlist() after repeated stuck
-            sessions
-
-        Requires the extended sudoers entries in
-        systemd/flockify-raspotify.sudoers. Returns True on success.
-        """
-        print("[SpotifyManager] Resetting Spotify pairing…")
-        cmds = [
-            ["sudo", "-n", "systemctl", "stop", "raspotify"],
-            [
-                "sudo", "-n", "rm", "-f",
-                "/var/lib/raspotify/credentials.json",
-                "/var/cache/raspotify/volume",
-            ],
-            ["sudo", "-n", "systemctl", "start", "raspotify"],
-        ]
-        for cmd in cmds:
-            try:
-                res = subprocess.run(
-                    cmd, capture_output=True, timeout=10
-                )
-                if res.returncode != 0:
-                    print(
-                        f"[SpotifyManager] reset_pairing step {cmd[2:]} failed: "
-                        f"{res.stderr.decode().strip()}"
-                    )
-                    return False
-            except Exception as e:
-                print(f"[SpotifyManager] reset_pairing error on {cmd[2:]}: {e}")
-                return False
-        # Reset our failure tracking and enter "waiting for pair" mode.
-        # Also clear the rate-limit backoff — a fresh pair clears Spotify's
-        # throttle on its end.
-        self._stuck_failures = []
-        self._device_id = None
-        self._rate_limit_until = 0.0
-        self._waiting_for_pairing = True
-        print("[SpotifyManager] Spotify pairing reset — waiting for user to re-pair from phone")
-        if self.on_pairing_required is not None:
-            try:
-                self.on_pairing_required()
-            except Exception as e:
-                print(f"[SpotifyManager] on_pairing_required callback error: {e}")
-        return True
-
-    def _in_boot_grace(self):
-        """True if we're still within the post-boot grace period where
-        failures are expected (librespot needs 30+ s to register with
-        the Web API after a cold start)."""
-        return (time.monotonic() - self._boot_time) < _BOOT_GRACE_SEC
-
-    def _note_stuck_failure(self):
-        """Record a stuck-session failure. Returns True if this failure
-        crossed the auto-escalation threshold and a reset_pairing() should
-        be triggered immediately.
-
-        During the boot grace period (first 5 min), failures are expected
-        as librespot takes time to register. We do NOT count them toward
-        the escalation threshold to avoid destroying valid credentials
-        during a perfectly normal cold boot.
-        """
-        if self._in_boot_grace():
-            return False
-        now = time.monotonic()
-        self._stuck_failures = [
-            t for t in self._stuck_failures if now - t < _ESCALATION_WINDOW_SEC
-        ]
-        self._stuck_failures.append(now)
-        if len(self._stuck_failures) >= _ESCALATION_FAILURE_THRESHOLD:
-            print(
-                f"[SpotifyManager] {len(self._stuck_failures)} stuck-session failures "
-                f"in {_ESCALATION_WINDOW_SEC}s — auto-escalating to reset_pairing"
-            )
-            return True
-        return False
-
-    def _recover_raspotify(self):
-        """Attempt a `sudo systemctl restart raspotify` to unstick librespot.
-
-        Requires a passwordless sudoers entry (installed by scripts/install.sh
-        as /etc/sudoers.d/flockify-raspotify). Safe no-op if sudo refuses.
-        Returns True on success, False otherwise.
-        """
-        try:
-            result = subprocess.run(
-                ["sudo", "-n", "systemctl", "restart", "raspotify"],
-                capture_output=True,
-                timeout=10,
-            )
-            if result.returncode == 0:
-                print("[SpotifyManager] Restarted raspotify to clear stuck state")
-                return True
-            print(f"[SpotifyManager] raspotify restart failed: {result.stderr.decode().strip()}")
-        except Exception as e:
-            print(f"[SpotifyManager] raspotify restart error: {e}")
-        return False
-
-    def find_device(self, retries=3, delay=1):
-        """Discover Raspotify device by name from config.
-
-        Defaults kept small (3x1s = 3s max) so that button presses don't
-        block the state machine for 20 s when Spotify is temporarily
-        unreachable. Boot-time resume can pass a larger retries value
-        if needed — raspotify's `Restart=on-failure` drop-in now handles
-        the transient-AP-failure case that used to require long waits.
-
-        Returns device_id or None.
-        """
-        if not self.sp:
-            return None
-
-        device_name = self.config.get("spotify", {}).get("device_name", "flockifybox")
-
-        for attempt in range(retries):
-            try:
-                result = self.sp.devices()
-                devices = result.get("devices", [])
-                for device in devices:
-                    if device.get("name", "").lower() == device_name.lower():
-                        self._device_id = device["id"]
-                        return self._device_id
-            except spotipy.exceptions.SpotifyException as e:
-                print(f"[SpotifyManager] Spotify API error finding device: {e}")
-            except requests.exceptions.ConnectionError as e:
-                print(f"[SpotifyManager] Connection error finding device: {e}")
-
-            if attempt < retries - 1:
-                time.sleep(delay)
-
-        return None
-
-    def play_playlist(self, uri, attempts=5, delay=2):
-        """Start playlist on Raspotify device.
-
-        Raspotify publishes its device to the Web API before it is actually
-        ready to receive playback commands — the first start_playback call
-        after a fresh boot commonly returns HTTP 404 ("device not found")
-        even though devices() listed it a moment earlier. We retry the
-        whole find-device + start-playback dance on any 404 until it
-        takes, which is what makes auto-resume survive a power cycle.
-
-        Returns True/False.
-        """
-        if not self.sp:
-            return False
-        if self._rate_limited():
-            print("[SpotifyManager] In rate-limit backoff — skipping play_playlist")
-            return False
-
-        last_error = None
-        recovered = False
-        for attempt in range(attempts):
-            try:
-                device_id = self.find_device()
-                if not device_id:
-                    last_error = "no device"
-                    # Halfway through attempts, kick raspotify — but NOT
-                    # during the boot grace period, because restarting
-                    # raspotify mid-registration resets the 30+ second
-                    # Web API registration process to zero.
-                    if (
-                        not recovered
-                        and attempt >= (attempts // 2)
-                        and not self._in_boot_grace()
-                    ):
-                        recovered = self._recover_raspotify()
-                        if recovered:
-                            time.sleep(8)
-                            continue
-                    time.sleep(delay)
-                    continue
-                self.sp.start_playback(device_id=device_id, context_uri=uri)
-                if attempt > 0:
-                    print(f"[SpotifyManager] Playback started on attempt {attempt + 1}")
-                # Clear the stuck-session failure window and any pending
-                # "please re-pair" prompt on the first clean success.
-                self.clear_pairing_prompt()
-                return True
-            except spotipy.exceptions.SpotifyException as e:
-                last_error = str(e)
-                status = getattr(e, "http_status", None)
-                # 429 = rate limited. Back off hard and give up — continuing
-                # to hammer the API only makes it worse. This situation
-                # occurs when the Pi cold-boots into a librespot zombie
-                # state (device listed by sp.devices() but start_playback
-                # returns 404) and our retry loops cause Spotify to
-                # throttle the whole app.
-                if status == 429:
-                    self._rate_limit_until = time.monotonic() + _RATE_LIMIT_BACKOFF_SEC
-                    print(f"[SpotifyManager] Rate limited (429) — backing off for {_RATE_LIMIT_BACKOFF_SEC}s")
-                    return False
-                if status in (404, 502, 503):
-                    # Forget the stale device id so find_device re-resolves
-                    self._device_id = None
-                    # 404 on start_playback with a device that IS listed
-                    # means librespot is zombied. Trigger self-heal once,
-                    # same as when find_device fails.
-                    if (
-                        status == 404
-                        and not recovered
-                        and attempt >= (attempts // 2)
-                        and not self._in_boot_grace()
-                    ):
-                        recovered = self._recover_raspotify()
-                        if recovered:
-                            time.sleep(8)
-                            continue
-                    time.sleep(delay)
-                    continue
-                print(f"[SpotifyManager] Error starting playlist: {e}")
-                return False
-            except requests.exceptions.ConnectionError as e:
-                last_error = str(e)
-                time.sleep(delay)
-                continue
-
-        print(f"[SpotifyManager] play_playlist gave up after {attempts} attempts: {last_error}")
-        # Record this as a stuck-session failure. If we've hit the
-        # threshold, auto-escalate to a full credential wipe so the user
-        # only has to re-pair from their phone to recover.
-        if self._note_stuck_failure():
-            self.reset_pairing()
-        return False
+    def play_playlist(self, uri):
+        """Start playlist/album on go-librespot. Returns True/False."""
+        return self._local_post("/player/play", json={"uri": uri})
 
     def next_track(self):
         """Skip to next track. Returns True/False."""
-        if not self.sp or self._rate_limited():
-            return False
-        try:
-            device_id = self._device_id or self.find_device()
-            if not device_id:
-                return False
-            self.sp.next_track(device_id=device_id)
-            return True
-        except spotipy.exceptions.SpotifyException as e:
-            if self._note_rate_limit(e):
-                return False
-            print(f"[SpotifyManager] Error skipping track: {e}")
-            return False
-        except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error skipping track: {e}")
-            return False
+        return self._local_post("/player/next")
 
     def previous_track(self):
         """Go to previous track. Returns True/False."""
-        if not self.sp or self._rate_limited():
-            return False
-        try:
-            device_id = self._device_id or self.find_device()
-            if not device_id:
-                return False
-            self.sp.previous_track(device_id=device_id)
-            return True
-        except spotipy.exceptions.SpotifyException as e:
-            if self._note_rate_limit(e):
-                return False
-            print(f"[SpotifyManager] Error going to previous track: {e}")
-            return False
-        except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error going to previous track: {e}")
-            return False
+        return self._local_post("/player/prev")
 
     def pause(self):
         """Pause playback. Returns True/False."""
-        if not self.sp or self._rate_limited():
-            return False
-        try:
-            device_id = self._device_id or self.find_device()
-            if not device_id:
-                return False
-            self.sp.pause_playback(device_id=device_id)
-            return True
-        except spotipy.exceptions.SpotifyException as e:
-            if self._note_rate_limit(e):
-                return False
-            print(f"[SpotifyManager] Error pausing: {e}")
-            return False
-        except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error pausing: {e}")
-            return False
+        return self._local_post("/player/pause")
 
     def resume(self):
         """Resume playback. Returns True/False."""
-        if not self.sp or self._rate_limited():
-            return False
-        try:
-            device_id = self._device_id or self.find_device()
-            if not device_id:
-                return False
-            self.sp.start_playback(device_id=device_id)
-            return True
-        except spotipy.exceptions.SpotifyException as e:
-            if self._note_rate_limit(e):
-                return False
-            print(f"[SpotifyManager] Error resuming: {e}")
-            return False
-        except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error resuming: {e}")
-            return False
+        return self._local_post("/player/resume")
 
     def set_volume(self, level):
         """Set volume (0-100). Returns True/False."""
-        if not self.sp or self._rate_limited():
-            return False
-        try:
-            device_id = self._device_id or self.find_device()
-            if not device_id:
-                return False
-            level = max(0, min(100, int(level)))
-            self.sp.volume(level, device_id=device_id)
-            return True
-        except spotipy.exceptions.SpotifyException as e:
-            if self._note_rate_limit(e):
-                return False
-            print(f"[SpotifyManager] Error setting volume: {e}")
-            return False
-        except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error setting volume: {e}")
-            return False
+        level = max(0, min(100, int(level)))
+        return self._local_post("/player/volume", json={"volume": level})
 
     def get_current_track(self):
         """Return dict with current track info or None if nothing playing.
 
         Keys: name, artist, album, album_art_url, is_playing
         """
-        if not self.sp:
-            return None
         try:
-            playback = self.sp.current_playback()
-            if not playback or not playback.get("item"):
+            r = requests.get(f"{GO_LIBRESPOT_URL}/status", timeout=5)
+            if r.status_code >= 300:
                 return None
-            item = playback["item"]
-            artists = ", ".join(a["name"] for a in item.get("artists", []))
-            images = item.get("album", {}).get("images", [])
-            album_art_url = images[0]["url"] if images else ""
+            data = r.json()
+            track = data.get("track")
+            if not track:
+                return None
             return {
-                "name": item.get("name", ""),
-                "artist": artists,
-                "album": item.get("album", {}).get("name", ""),
-                "album_art_url": album_art_url,
-                "is_playing": playback.get("is_playing", False),
+                "name": track.get("name", ""),
+                "artist": ", ".join(track.get("artist_names", [])),
+                "album": track.get("album_name", ""),
+                "album_art_url": track.get("album_cover_url", ""),
+                "is_playing": not data.get("paused", True),
             }
-        except spotipy.exceptions.SpotifyException as e:
+        except Exception as e:
             print(f"[SpotifyManager] Error getting current track: {e}")
             return None
-        except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error getting current track: {e}")
-            return None
+
+    def is_connected(self):
+        """Check if go-librespot is reachable. Returns True/False."""
+        try:
+            r = requests.get(f"{GO_LIBRESPOT_URL}/status", timeout=5)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+    # ── Metadata (spotipy, read-only) ──────────────────────────────
 
     def get_playlist_info(self, uri):
         """Return dict with name, cover_url, track_count or None.
@@ -586,7 +226,6 @@ class SpotifyManager:
         if not self.sp:
             return None
         try:
-            # Detect type from URI
             kind = "playlist"
             item_id = uri
             if uri.startswith("spotify:playlist:"):
@@ -616,22 +255,3 @@ class SpotifyManager:
         except requests.exceptions.ConnectionError as e:
             print(f"[SpotifyManager] Connection error getting item info: {e}")
             return None
-
-    def is_connected(self):
-        """Check if Raspotify device is available. Returns True/False."""
-        if not self.sp:
-            return False
-        try:
-            result = self.sp.devices()
-            device_name = self.config.get("spotify", {}).get("device_name", "flockifybox")
-            devices = result.get("devices", [])
-            for device in devices:
-                if device.get("name", "").lower() == device_name.lower():
-                    return True
-            return False
-        except spotipy.exceptions.SpotifyException as e:
-            print(f"[SpotifyManager] Error checking connection: {e}")
-            return False
-        except requests.exceptions.ConnectionError as e:
-            print(f"[SpotifyManager] Connection error checking device: {e}")
-            return False

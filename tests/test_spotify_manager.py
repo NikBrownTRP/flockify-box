@@ -1,9 +1,7 @@
 """Tests for SpotifyManager (spotify_manager.py)."""
 
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
-
-from spotipy.exceptions import SpotifyException
+from unittest.mock import MagicMock, patch
 
 
 @pytest.fixture
@@ -27,10 +25,12 @@ def full_config():
     return cm
 
 
+# ── Credential / config tests (unchanged logic) ────────────────
+
+
 @patch("spotify_manager.spotipy")
 def test_is_configured_false(mock_spotipy, empty_config):
     from spotify_manager import SpotifyManager
-
     mgr = SpotifyManager(empty_config)
     assert mgr.is_configured() is False
 
@@ -39,95 +39,8 @@ def test_is_configured_false(mock_spotipy, empty_config):
 @patch("spotify_manager.SpotifyOAuth")
 def test_is_configured_true(mock_oauth, mock_spotipy, full_config):
     from spotify_manager import SpotifyManager
-
     mgr = SpotifyManager(full_config)
     assert mgr.is_configured() is True
-
-
-@patch("spotify_manager.spotipy")
-@patch("spotify_manager.SpotifyOAuth")
-def test_play_playlist_calls_api(mock_oauth, mock_spotipy, full_config):
-    from spotify_manager import SpotifyManager
-
-    mock_sp = MagicMock()
-    mock_sp.devices.return_value = {
-        "devices": [{"name": "flockifybox", "id": "dev123"}]
-    }
-    mock_spotipy.Spotify.return_value = mock_sp
-
-    mgr = SpotifyManager(full_config)
-    mgr.sp = mock_sp
-
-    result = mgr.play_playlist("spotify:playlist:XYZ")
-    mock_sp.start_playback.assert_called_once_with(
-        device_id="dev123", context_uri="spotify:playlist:XYZ"
-    )
-    assert result is True
-
-
-@patch("spotify_manager.spotipy")
-@patch("spotify_manager.SpotifyOAuth")
-def test_next_track_calls_api(mock_oauth, mock_spotipy, full_config):
-    from spotify_manager import SpotifyManager
-
-    mock_sp = MagicMock()
-    mock_sp.devices.return_value = {
-        "devices": [{"name": "flockifybox", "id": "dev123"}]
-    }
-    mock_spotipy.Spotify.return_value = mock_sp
-
-    mgr = SpotifyManager(full_config)
-    mgr.sp = mock_sp
-    mgr._device_id = "dev123"
-
-    result = mgr.next_track()
-    mock_sp.next_track.assert_called_once_with(device_id="dev123")
-    assert result is True
-
-
-@patch("spotify_manager.spotipy")
-@patch("spotify_manager.SpotifyOAuth")
-def test_get_current_track_returns_dict(mock_oauth, mock_spotipy, full_config):
-    from spotify_manager import SpotifyManager
-
-    mock_sp = MagicMock()
-    mock_sp.current_playback.return_value = {
-        "is_playing": True,
-        "item": {
-            "name": "Test Song",
-            "artists": [{"name": "Artist A"}, {"name": "Artist B"}],
-            "album": {
-                "name": "Test Album",
-                "images": [{"url": "http://img/cover.jpg"}],
-            },
-        },
-    }
-    mock_spotipy.Spotify.return_value = mock_sp
-
-    mgr = SpotifyManager(full_config)
-    mgr.sp = mock_sp
-
-    track = mgr.get_current_track()
-    assert track is not None
-    assert track["name"] == "Test Song"
-    assert "Artist A" in track["artist"]
-    assert track["is_playing"] is True
-
-
-@patch("spotify_manager.spotipy")
-@patch("spotify_manager.SpotifyOAuth")
-def test_get_current_track_none(mock_oauth, mock_spotipy, full_config):
-    from spotify_manager import SpotifyManager
-
-    mock_sp = MagicMock()
-    mock_sp.current_playback.return_value = None
-    mock_spotipy.Spotify.return_value = mock_sp
-
-    mgr = SpotifyManager(full_config)
-    mgr.sp = mock_sp
-
-    track = mgr.get_current_track()
-    assert track is None
 
 
 @patch("spotify_manager.spotipy")
@@ -152,7 +65,6 @@ def test_logout_clears_refresh_token(mock_oauth, mock_spotipy, tmp_path, monkeyp
     from spotify_manager import SpotifyManager
     import spotify_manager as sm
 
-    # Use a real tempfile as the token cache
     cache_file = tmp_path / ".spotify_token_cache"
     cache_file.write_text("dummy-token-data")
     monkeypatch.setattr(sm, "TOKEN_CACHE_PATH", str(cache_file))
@@ -176,13 +88,10 @@ def test_logout_clears_refresh_token(mock_oauth, mock_spotipy, tmp_path, monkeyp
 
     mgr.logout()
 
-    # refresh_token cleared, but id/secret kept
     assert spotify_dict["refresh_token"] == ""
     assert spotify_dict["client_id"] == "cid"
     assert spotify_dict["client_secret"] == "csec"
-    # Cache file deleted
     assert not cache_file.exists()
-    # sp is None
     assert mgr.sp is None
 
 
@@ -206,23 +115,166 @@ def test_reauth_url_without_credentials(mock_spotipy, empty_config):
     assert mgr.reauth_url() is None
 
 
-@patch("spotify_manager.SpotifyOAuth")
-def test_api_error_graceful(mock_oauth, full_config):
-    """sp.next_track() raising SpotifyException should be caught gracefully."""
+# ── Playback tests (go-librespot local API) ────────────────────
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.post")
+def test_play_playlist_calls_local_api(mock_post, mock_spotipy, empty_config):
     from spotify_manager import SpotifyManager
 
-    mock_sp = MagicMock()
-    mock_sp.next_track.side_effect = SpotifyException(
-        http_status=500, code=-1, msg="Server error"
+    mock_post.return_value = MagicMock(status_code=200)
+    mgr = SpotifyManager(empty_config)
+
+    result = mgr.play_playlist("spotify:playlist:XYZ")
+    mock_post.assert_called_once_with(
+        "http://127.0.0.1:3678/player/play",
+        json={"uri": "spotify:playlist:XYZ"},
+        timeout=5,
     )
-    mock_sp.devices.return_value = {
-        "devices": [{"name": "flockifybox", "id": "dev123"}]
-    }
+    assert result is True
 
-    mgr = SpotifyManager(full_config)
-    mgr.sp = mock_sp
-    mgr._device_id = "dev123"
 
-    # Should not raise; returns False on error
-    result = mgr.next_track()
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.post")
+def test_play_playlist_returns_false_on_connection_error(mock_post, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+    import requests as req
+
+    mock_post.side_effect = req.exceptions.ConnectionError("refused")
+    mgr = SpotifyManager(empty_config)
+
+    result = mgr.play_playlist("spotify:playlist:XYZ")
     assert result is False
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.post")
+def test_next_track_calls_local_api(mock_post, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+
+    mock_post.return_value = MagicMock(status_code=200)
+    mgr = SpotifyManager(empty_config)
+
+    result = mgr.next_track()
+    mock_post.assert_called_once_with(
+        "http://127.0.0.1:3678/player/next",
+        json=None,
+        timeout=5,
+    )
+    assert result is True
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.post")
+def test_previous_track_calls_local_api(mock_post, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+
+    mock_post.return_value = MagicMock(status_code=200)
+    mgr = SpotifyManager(empty_config)
+
+    result = mgr.previous_track()
+    mock_post.assert_called_once_with(
+        "http://127.0.0.1:3678/player/prev",
+        json=None,
+        timeout=5,
+    )
+    assert result is True
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.get")
+def test_get_current_track_parses_status(mock_get, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "paused": False,
+        "track": {
+            "name": "Test Song",
+            "artist_names": ["Artist A", "Artist B"],
+            "album_name": "Test Album",
+            "album_cover_url": "http://img/cover.jpg",
+        },
+    }
+    mock_get.return_value = mock_resp
+    mgr = SpotifyManager(empty_config)
+
+    track = mgr.get_current_track()
+    assert track is not None
+    assert track["name"] == "Test Song"
+    assert track["artist"] == "Artist A, Artist B"
+    assert track["album"] == "Test Album"
+    assert track["album_art_url"] == "http://img/cover.jpg"
+    assert track["is_playing"] is True
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.get")
+def test_get_current_track_returns_none_on_error(mock_get, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+    import requests as req
+
+    mock_get.side_effect = req.exceptions.ConnectionError("refused")
+    mgr = SpotifyManager(empty_config)
+
+    track = mgr.get_current_track()
+    assert track is None
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.get")
+def test_is_connected_true_on_200(mock_get, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+
+    mock_get.return_value = MagicMock(status_code=200)
+    mgr = SpotifyManager(empty_config)
+
+    assert mgr.is_connected() is True
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.get")
+def test_is_connected_false_on_connection_error(mock_get, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+    import requests as req
+
+    mock_get.side_effect = req.exceptions.ConnectionError("refused")
+    mgr = SpotifyManager(empty_config)
+
+    assert mgr.is_connected() is False
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.post")
+def test_set_volume_calls_local_api_with_clamped_value(mock_post, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+
+    mock_post.return_value = MagicMock(status_code=200)
+    mgr = SpotifyManager(empty_config)
+
+    # Normal value
+    result = mgr.set_volume(75)
+    mock_post.assert_called_with(
+        "http://127.0.0.1:3678/player/volume",
+        json={"volume": 75},
+        timeout=5,
+    )
+    assert result is True
+
+    # Over 100 should clamp to 100
+    mgr.set_volume(150)
+    mock_post.assert_called_with(
+        "http://127.0.0.1:3678/player/volume",
+        json={"volume": 100},
+        timeout=5,
+    )
+
+    # Below 0 should clamp to 0
+    mgr.set_volume(-10)
+    mock_post.assert_called_with(
+        "http://127.0.0.1:3678/player/volume",
+        json={"volume": 0},
+        timeout=5,
+    )
