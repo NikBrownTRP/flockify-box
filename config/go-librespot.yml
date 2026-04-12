@@ -4,7 +4,8 @@ device_type: speaker
 zeroconf_enabled: true
 credentials:
   type: zeroconf
-  persist_credentials: true
+  zeroconf:
+    persist_credentials: true
 
 audio_backend: alsa
 audio_device: default
