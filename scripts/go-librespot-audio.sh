@@ -24,15 +24,23 @@ echo "[go-librespot-audio] Waiting for audio on $PIPE..."
 
 # Loop forever — ffmpeg exits when go-librespot restarts (pipe closes),
 # so we restart it automatically.
+#
+# Filter chain:
+#   alimiter: true-peak limiter at -1.5 dBFS (same ceiling as mpv's
+#             loudnorm TP=-1.5). No lookahead buffer, instant processing.
+#   volume=-3dB: small headroom reduction to further prevent DAC/amp
+#             inter-sample peak clipping.
+#
+# Output via pacat (PulseAudio pipe player) instead of ffmpeg's -f pulse
+# which has buffering issues on PipeWire.
 while true; do
     ffmpeg -hide_banner -loglevel warning \
         -f "$FORMAT" -ar "$SAMPLE_RATE" -ac "$CHANNELS" -i "$PIPE" \
-        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
-        -ar "$SAMPLE_RATE" -ac "$CHANNELS" -sample_fmt s16 \
-        -f pulse -device default \
-        "go-librespot" \
-        2>&1 | while read -r line; do echo "[go-librespot-audio] $line"; done
+        -af "alimiter=limit=0.85:attack=0.1:release=50:level=false,volume=-3dB" \
+        -f s16le -ar "$SAMPLE_RATE" -ac "$CHANNELS" pipe:1 2>/dev/null \
+    | pacat --format=s16le --rate="$SAMPLE_RATE" --channels="$CHANNELS" \
+            --stream-name="go-librespot" --latency-msec=100
 
-    echo "[go-librespot-audio] ffmpeg exited, restarting in 1s..."
+    echo "[go-librespot-audio] pipe closed, restarting in 1s..."
     sleep 1
 done
