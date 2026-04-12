@@ -7,8 +7,12 @@ credentials:
   zeroconf:
     persist_credentials: true
 
-audio_backend: pipe
-audio_output_pipe: /tmp/go-librespot-audio
+# MUST use ALSA backend, NOT pulseaudio. go-librespot's PulseAudio
+# backend has a bug that produces ~28% zero samples (audio dropouts),
+# causing scratchy/overdriven sound. ALSA through PipeWire's compat
+# layer works perfectly (1.3% zeros = normal for speech content).
+audio_backend: alsa
+audio_device: default
 bitrate: 320
 volume_steps: 100
 initial_volume: 100
