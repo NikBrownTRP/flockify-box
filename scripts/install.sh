@@ -41,54 +41,39 @@ apt-get install -y python3-pip python3-venv python3-pil python3-numpy \
 echo "    System packages installed."
 
 # =============================================================================
-# Step 3: Install and configure Raspotify
+# Step 3: Install go-librespot (Spotify Connect)
 # =============================================================================
-echo ">>> Step 3: Installing Raspotify..."
+echo ">>> Step 3: Installing go-librespot..."
 
-curl -sL https://dtcooper.github.io/raspotify/install.sh | sh
+ARCH=$(dpkg --print-architecture)
+GO_LIBRESPOT_VERSION="v0.2.0"
+GO_LIBRESPOT_URL="https://github.com/devgianlu/go-librespot/releases/download/${GO_LIBRESPOT_VERSION}/go-librespot_linux_${ARCH}"
 
-echo "    Configuring Raspotify..."
-
-RASPOTIFY_CONF="/etc/raspotify/conf"
-if [ -f "$RASPOTIFY_CONF" ]; then
-    # Update or add configuration values
-    sed -i 's/^#*LIBRESPOT_NAME=.*/LIBRESPOT_NAME="flockifybox"/' "$RASPOTIFY_CONF"
-    sed -i 's/^#*LIBRESPOT_BITRATE=.*/LIBRESPOT_BITRATE="320"/' "$RASPOTIFY_CONF"
-    # Use ALSA backend (PipeWire's ALSA compat layer routes to BT/wired sink)
-    sed -i 's/^#*LIBRESPOT_BACKEND=.*/LIBRESPOT_BACKEND="alsa"/' "$RASPOTIFY_CONF"
-    # Use the default ALSA device, which on PipeWire systems routes to the
-    # current default sink
-    sed -i '/^#*LIBRESPOT_DEVICE=/d' "$RASPOTIFY_CONF"
-    # Disable raspotify's default no-credential-cache flag — we WANT credentials
-    # cached so the device persistently logs in across reboots
-    sed -i '/^LIBRESPOT_DISABLE_CREDENTIAL_CACHE=/d' "$RASPOTIFY_CONF"
-
-    # If the values weren't found and replaced, append them
-    grep -q '^LIBRESPOT_NAME=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_NAME="flockifybox"' >> "$RASPOTIFY_CONF"
-    grep -q '^LIBRESPOT_BITRATE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BITRATE="320"' >> "$RASPOTIFY_CONF"
-    grep -q '^LIBRESPOT_BACKEND=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_BACKEND="alsa"' >> "$RASPOTIFY_CONF"
-    grep -q '^LIBRESPOT_DEVICE=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_DEVICE="default"' >> "$RASPOTIFY_CONF"
-    # Enable OAuth so librespot uses cached credentials at startup (must be set
-    # for librespot to actively log in instead of waiting in discovery mode)
-    grep -q '^LIBRESPOT_ENABLE_OAUTH=' "$RASPOTIFY_CONF" || echo 'LIBRESPOT_ENABLE_OAUTH=' >> "$RASPOTIFY_CONF"
+if [ ! -f /usr/local/bin/go-librespot ]; then
+    curl -sL "$GO_LIBRESPOT_URL" -o /usr/local/bin/go-librespot
+    chmod +x /usr/local/bin/go-librespot
+    echo "    go-librespot binary installed."
 else
-    echo "WARNING: Raspotify config not found at $RASPOTIFY_CONF"
+    echo "    go-librespot binary already present, skipping download."
 fi
 
-# Run raspotify as user nbrown so it can reach the user's PulseAudio/PipeWire
-# socket at /run/user/1000/pulse/native. Also enable linger so the user bus
-# starts at boot without needing an active login session.
-echo "    Configuring raspotify to use user PulseAudio..."
-loginctl enable-linger nbrown || echo "    (linger enable failed — continuing)"
-mkdir -p /etc/systemd/system/raspotify.service.d
-cp "$PROJECT_DIR/systemd/raspotify-override.conf" /etc/systemd/system/raspotify.service.d/override.conf
-# Self-heal hook: let flockify restart raspotify without a password so
-# spotify_manager._recover_raspotify() can unstick the cold-boot zombie.
-install -m 0440 -o root -g root "$PROJECT_DIR/systemd/flockify-raspotify.sudoers" /etc/sudoers.d/flockify-raspotify
-systemctl daemon-reload
+mkdir -p /etc/go-librespot
+cp "$PROJECT_DIR/config/go-librespot.yml" /etc/go-librespot/config.yml
 
-systemctl restart raspotify
-echo "    Raspotify installed and configured."
+# Remove raspotify if present (replaced by go-librespot)
+if systemctl is-active raspotify >/dev/null 2>&1 || systemctl is-enabled raspotify >/dev/null 2>&1; then
+    echo "    Removing raspotify (replaced by go-librespot)..."
+    systemctl stop raspotify 2>/dev/null || true
+    systemctl disable raspotify 2>/dev/null || true
+    rm -f /etc/systemd/system/raspotify.service.d/override.conf
+    rm -f /etc/sudoers.d/flockify-raspotify
+fi
+
+cp "$PROJECT_DIR/systemd/go-librespot.service" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable go-librespot
+
+echo "    go-librespot installed and enabled."
 
 # =============================================================================
 # Step 4: Set up project directory
@@ -207,7 +192,7 @@ echo "    Low power mode service installed and enabled."
 echo "    - CPU governor: powersave"
 echo "    - HDMI output: disabled"
 echo "    - WiFi power saving: enabled"
-echo "    - Raspotify bitrate: 320 kbps"
+echo "    - go-librespot bitrate: 320 kbps"
 
 # =============================================================================
 # Step 11b3: Install WiFi AP hotspot service
@@ -297,12 +282,7 @@ echo "   the music box should use (e.g. your child's account) before clicking"
 echo "   'Connect to Spotify'."
 echo "4. Add playlists on the Playlists page"
 echo ""
-echo "5. ONE-TIME OAUTH FOR RASPOTIFY (required for auto-resume on boot)"
-echo "   Run: sudo bash $INSTALL_DIR/scripts/spotify-oauth.sh"
-echo "   This logs librespot into Spotify so the device persistently"
-echo "   appears in your account's Spotify Connect device list."
-echo ""
-echo "6. NOTE about the Spotify Developer App:"
+echo "5. NOTE about the Spotify Developer App:"
 echo "   If your music box uses a different Spotify account than the one"
 echo "   that owns the Developer App, you must add that account to the app's"
 echo "   User Management allowlist on https://developer.spotify.com/dashboard"

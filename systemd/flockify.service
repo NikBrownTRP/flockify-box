@@ -1,7 +1,7 @@
 [Unit]
 Description=Flockify Box Music Player
-After=network-online.target pulseaudio.service flockify-update.service raspotify.service
-Wants=network-online.target flockify-update.service raspotify.service
+After=network-online.target pulseaudio.service flockify-update.service go-librespot.service
+Wants=network-online.target flockify-update.service go-librespot.service
 
 [Service]
 Type=simple

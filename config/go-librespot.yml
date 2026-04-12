@@ -1,0 +1,20 @@
+device_name: flockifybox
+device_type: speaker
+
+zeroconf_enabled: true
+credentials:
+  type: zeroconf
+
+audio_backend: alsa
+audio_device: default
+bitrate: 320
+volume_steps: 100
+initial_volume: 100
+
+normalisation_disabled: false
+normalisation_pregain: -3
+
+server:
+  enabled: true
+  address: 127.0.0.1
+  port: 3678
