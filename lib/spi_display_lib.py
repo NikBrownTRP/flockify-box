@@ -51,10 +51,11 @@ class SPIDisplay:
         lgpio.gpio_claim_output(self.gpio_chip, self.bl_pin)
         
         # Setup PWM for backlight (1kHz frequency - more compatible)
-        # 20 kHz — well above the ~200 Hz threshold where human eyes
-        # can detect PWM flicker, even at very low duty cycles (5%
-        # night-mode brightness was visibly flickering at the old 1 kHz).
-        self.pwm_freq = 20000
+        # 10 kHz — well above the ~200 Hz flicker perception threshold,
+        # but within lgpio's software PWM capability on the Pi 5.
+        # (20 kHz caused black screen — lgpio can't toggle that fast.)
+        # The old 1 kHz caused visible flicker at low duty cycles (5%).
+        self.pwm_freq = 10000
         self.pwm_duty = 100  # Start at 100%
         lgpio.tx_pwm(self.gpio_chip, self.bl_pin, self.pwm_freq, self.pwm_duty)
         
