@@ -46,12 +46,16 @@ echo "    System packages installed."
 echo ">>> Step 3: Installing go-librespot..."
 
 ARCH=$(dpkg --print-architecture)
-GO_LIBRESPOT_VERSION="v0.2.0"
-GO_LIBRESPOT_URL="https://github.com/devgianlu/go-librespot/releases/download/${GO_LIBRESPOT_VERSION}/go-librespot_linux_${ARCH}"
+GO_LIBRESPOT_URL="https://github.com/devgianlu/go-librespot/releases/latest/download/go-librespot_linux_${ARCH}.tar.gz"
+INSTALL_USER=$(logname 2>/dev/null || echo pi)
 
 if [ ! -f /usr/local/bin/go-librespot ]; then
-    curl -sL "$GO_LIBRESPOT_URL" -o /usr/local/bin/go-librespot
+    echo "    Downloading go-librespot for ${ARCH}..."
+    curl -sL "$GO_LIBRESPOT_URL" -o /tmp/go-librespot.tar.gz
+    tar xzf /tmp/go-librespot.tar.gz -C /tmp go-librespot
+    mv /tmp/go-librespot /usr/local/bin/go-librespot
     chmod +x /usr/local/bin/go-librespot
+    rm -f /tmp/go-librespot.tar.gz
     echo "    go-librespot binary installed."
 else
     echo "    go-librespot binary already present, skipping download."
@@ -59,6 +63,7 @@ fi
 
 mkdir -p /etc/go-librespot
 cp "$PROJECT_DIR/config/go-librespot.yml" /etc/go-librespot/config.yml
+chown -R "$INSTALL_USER:$INSTALL_USER" /etc/go-librespot
 
 # Remove raspotify if present (replaced by go-librespot)
 if systemctl is-active raspotify >/dev/null 2>&1 || systemctl is-enabled raspotify >/dev/null 2>&1; then
