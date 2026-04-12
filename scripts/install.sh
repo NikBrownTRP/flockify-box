@@ -165,7 +165,7 @@ echo "    Hostname set to flockifybox."
 # =============================================================================
 echo ">>> Step 10: Adding pi user to required groups..."
 
-usermod -aG spi,gpio,pulse,pulse-access,bluetooth pi
+usermod -aG spi,gpio,pulse,pulse-access,bluetooth,input pi
 
 echo "    User added to groups."
 

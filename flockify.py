@@ -33,6 +33,62 @@ idle_dimmer = None
 _shutdown_done = False
 
 
+def _monitor_power_button():
+    """Background thread: read /dev/input/event0 for KEY_POWER.
+
+    When J2 is pressed, immediately show the shutdown tiger and then
+    blank the display + backlight to 0 — all BEFORE systemd's SIGTERM
+    reaches us. This gives instant visual feedback and ensures the
+    display is dark before the kernel halt phase where GPIO state
+    becomes unpredictable.
+
+    Runs as a daemon thread so it doesn't block exit.
+    """
+    import struct
+    import time as _t
+
+    EVENT_FORMAT = "llHHI"
+    EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
+    EV_KEY = 0x01
+    KEY_POWER = 116
+    DEVICE = "/dev/input/event0"
+
+    try:
+        with open(DEVICE, "rb") as f:
+            while True:
+                data = f.read(EVENT_SIZE)
+                if len(data) < EVENT_SIZE:
+                    break
+                _, _, typ, code, value = struct.unpack(EVENT_FORMAT, data)
+                # value 1 = key down
+                if typ == EV_KEY and code == KEY_POWER and value == 1:
+                    print("[power-button] J2 pressed — blanking display")
+                    if display_manager is not None:
+                        try:
+                            import os as _os
+                            img = _os.path.join(
+                                _os.path.dirname(_os.path.abspath(__file__)),
+                                "images", "shutdown_tiger.png",
+                            )
+                            if _os.path.isfile(img):
+                                display_manager.show_splash(img)
+                            else:
+                                display_manager.show_sleep_screen()
+                            display_manager.set_backlight(40)
+                            _t.sleep(1.5)
+                            display_manager.set_backlight(0)
+                            if display_manager.display is not None:
+                                display_manager.display.clear((0, 0, 0))
+                        except Exception as e:
+                            print(f"[power-button] Error blanking: {e}")
+    except FileNotFoundError:
+        print("[power-button] /dev/input/event0 not found — power button monitor disabled")
+    except PermissionError:
+        print("[power-button] No permission to read /dev/input/event0 — add user to 'input' group")
+    except Exception as e:
+        print(f"[power-button] Monitor error: {e}")
+
+
 def shutdown(signum, frame):
     """Gracefully shut down all subsystems.
 
@@ -392,7 +448,15 @@ def main():
     print("=" * 50)
 
     # ------------------------------------------------------------------
-    # 13. Main loop — wait for signals
+    # 13. Power button monitor
+    # ------------------------------------------------------------------
+    if hardware_mode:
+        pwr_thread = threading.Thread(target=_monitor_power_button, daemon=True)
+        pwr_thread.start()
+        print("[flockify] Power button monitor started")
+
+    # ------------------------------------------------------------------
+    # 14. Main loop — wait for signals
     # ------------------------------------------------------------------
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
