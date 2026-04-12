@@ -27,9 +27,9 @@ echo "[go-librespot-audio] Waiting for audio on $PIPE..."
 while true; do
     ffmpeg -hide_banner -loglevel warning \
         -f "$FORMAT" -ar "$SAMPLE_RATE" -ac "$CHANNELS" -i "$PIPE" \
-        -af "loudnorm=I=-16:TP=-1.5:LRA=11,volume=1.0" \
+        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
+        -ar "$SAMPLE_RATE" -ac "$CHANNELS" -sample_fmt s16 \
         -f pulse -device default \
-        -buffer_size 4096 \
         "go-librespot" \
         2>&1 | while read -r line; do echo "[go-librespot-audio] $line"; done
 
