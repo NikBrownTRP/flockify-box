@@ -297,33 +297,6 @@ def api_spotify_clear():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/spotify/reset_pairing', methods=['POST'])
-def api_spotify_reset_pairing():
-    """Wipe librespot credentials + restart raspotify so the box
-    re-enters a fresh zeroconf-pairable state. The user then opens
-    Spotify on their phone, starts any track, taps 'Connect to a device'
-    and picks flockifybox — this hands over fresh credentials and
-    restores playback on the box.
-
-    This is the user-facing recovery path for the 'stuck Connect session'
-    failure mode (see README troubleshooting)."""
-    if not spotify_manager:
-        return jsonify({'error': 'Not initialized'}), 503
-    try:
-        ok = spotify_manager.reset_pairing()
-        if not ok:
-            return jsonify({'error': 'reset_pairing failed — check server logs'}), 500
-        return jsonify({
-            'ok': True,
-            'next_step': (
-                'Open Spotify on your phone, play any track, tap the '
-                '"Connect to a device" icon, and select "flockifybox".'
-            ),
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 # ------------------------------------------------------------------
 # WiFi API
 # ------------------------------------------------------------------

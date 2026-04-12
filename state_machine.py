@@ -207,10 +207,6 @@ class StateMachine:
             'audio_output': self.audio_router.current_output,
             'is_playing': True,
             'period': period,
-            'spotify_needs_pairing': bool(
-                self.spotify is not None
-                and getattr(self.spotify, 'is_waiting_for_pairing', lambda: False)()
-            ),
         }
 
         if is_webradio:
@@ -232,14 +228,8 @@ class StateMachine:
     # Internal methods
     # ------------------------------------------------------------------
 
-    def _activate_mode(self, boot_resume=False):
-        """Core transition logic. Must be called while self.lock is held.
-
-        When *boot_resume* is True, Spotify playback uses much longer
-        retries (15 attempts × 4 s = 60 s) to give librespot time to
-        register with the Web API after a cold start. Normal button
-        presses use the default short retries so the UI stays responsive.
-        """
+    def _activate_mode(self):
+        """Core transition logic. Must be called while self.lock is held."""
         try:
             if self.is_spotify_mode():
                 playlist = self.get_current_playlist()
@@ -252,21 +242,9 @@ class StateMachine:
                     pass
                 # Start Spotify playlist
                 try:
-                    if boot_resume:
-                        self.spotify.play_playlist(
-                            playlist.get('uri', ''), attempts=15, delay=4,
-                        )
-                    else:
-                        self.spotify.play_playlist(playlist.get('uri', ''))
+                    self.spotify.play_playlist(playlist.get('uri', ''))
                 except Exception as e:
                     print(f"[StateMachine] Error starting Spotify playlist: {e}")
-                # Ensure librespot is at unity (spirc vol 100). The box
-                # controls loudness at the PipeWire sink, not inside
-                # librespot, so spirc must be pegged at max.
-                try:
-                    self.spotify.set_volume(100)
-                except Exception:
-                    pass
                 self._apply_volume(self.volume)
                 # Update display
                 try:
