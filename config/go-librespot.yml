@@ -7,8 +7,8 @@ credentials:
   zeroconf:
     persist_credentials: true
 
-audio_backend: alsa
-audio_device: default
+audio_backend: pipe
+audio_output_pipe: /tmp/go-librespot-audio
 bitrate: 320
 volume_steps: 100
 initial_volume: 100

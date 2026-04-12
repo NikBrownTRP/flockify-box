@@ -1,0 +1,18 @@
+[Unit]
+Description=go-librespot audio filter (loudnorm via ffmpeg)
+# Start before go-librespot so the pipe exists when it tries to write
+Before=go-librespot.service
+After=pipewire-pulse.service
+Wants=pipewire-pulse.service
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/bin/bash /home/pi/flockify/scripts/go-librespot-audio.sh
+Restart=on-failure
+RestartSec=3
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PULSE_SERVER=unix:/run/user/1000/pulse/native
+
+[Install]
+WantedBy=multi-user.target
