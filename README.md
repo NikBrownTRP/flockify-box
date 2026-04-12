@@ -6,7 +6,7 @@ A Raspberry Pi 5 music player built for kids — Spotify playlists, web radio, p
 
 ## Features
 
-- **Spotify Connect** — Play up to 10 Spotify playlists/albums via Raspotify (librespot) at 320 kbps
+- **Spotify Connect** — Play up to 10 Spotify playlists/albums via go-librespot at 320 kbps
 - **Web Radio** — Stream one configurable web radio station (default: Radino) with EBU R128 loudness normalisation
 - **Physical Buttons** — 5 GPIO buttons: volume up/down, next/prev track, next playlist/mode
 - **Power Button** — J2 header for clean shutdown/wake with visual feedback (shutdown tiger screen)
@@ -18,7 +18,7 @@ A Raspberry Pi 5 music player built for kids — Spotify playlists, web radio, p
 - **Auto-Update** — Pulls from GitHub on every boot (fast-forward only, 90s timeout)
 - **Low Power** — CPU powersave governor, HDMI off, WiFi power saving
 - **Idle Dimmer** — Display dims to 20% after 60s of no interaction, restores on button press
-- **Spotify Self-Heal** — Automatic recovery from zombie Connect sessions with pairing reset
+- **Spotify Self-Heal** — Automatic recovery from zombie Connect sessions
 
 ## Hardware
 
@@ -101,7 +101,7 @@ sudo bash scripts/install.sh
 sudo reboot
 ```
 
-The installer handles: system packages, Raspotify (Spotify Connect at 320 kbps), Python venv, SPI + I²S DAC overlays, hostname (`flockifybox`), user groups, and all systemd services.
+The installer handles: system packages, go-librespot (Spotify Connect at 320 kbps), Python venv, SPI + I²S DAC overlays, hostname (`flockifybox`), user groups, and all systemd services.
 
 ### 3. Enable I²S DAC
 
@@ -145,16 +145,13 @@ The boot splash service (`flockify-boot-splash`) shows the boot tiger very early
 
 ## Audio Architecture
 
-Both players (librespot + mpv) run at internal unity volume. The user's volume knob controls a single gain stage — the PipeWire default-sink volume — keeping the full signal amplitude through the digital path.
+Both players (go-librespot + mpv) run at internal unity volume. The user's volume knob controls a single gain stage — the PipeWire default-sink volume — keeping the full signal amplitude through the digital path.
 
 | Setting | Value | Purpose |
 |---------|-------|---------|
 | `max_output_percent` | 60 | Kid-safe ceiling: knob=100 → sink at 60% |
 | `webradio_volume` | 25 | Trims mpv to match Spotify's normalised level |
-| `LIBRESPOT_FORMAT` | F32 | Float32 output avoids S16 hard-clipping on normalisation |
-| `LIBRESPOT_BITRATE` | 320 | Maximum Spotify quality |
-| `LIBRESPOT_NORMALISATION_METHOD` | basic | Per-track gain, no limiter compression |
-| `LIBRESPOT_NORMALISATION_PREGAIN` | -3 | Headroom to prevent clipping |
+| go-librespot normalisation | `config.yml` | Format, bitrate, and normalisation are configured in go-librespot's config.yml |
 | mpv `loudnorm` filter | I=-16:TP=-1.5 | EBU R128 normalisation for webradio streams |
 
 ## Systemd Services
@@ -166,7 +163,7 @@ Both players (librespot + mpv) run at internal unity volume. The user's volume k
 | `flockify-wifi-ap.service` | oneshot | WiFi hotspot if no known network |
 | `flockify-update.service` | oneshot | Auto-update from GitHub on boot |
 | `flockify-lowpower.service` | oneshot | CPU powersave + WiFi power saving |
-| `raspotify.service` + override | simple | Spotify Connect (librespot) |
+| `go-librespot.service` | simple | Spotify Connect (go-librespot) |
 
 ## File Structure
 
@@ -176,7 +173,7 @@ flockify/
 ├── config_manager.py        # JSON config with atomic saves
 ├── config_default.json      # Default configuration template
 ├── audio_router.py          # PipeWire BT/wired switching
-├── spotify_manager.py       # Spotify Web API + self-heal + reset pairing
+├── spotify_manager.py       # Spotify Web API + self-heal
 ├── state_machine.py         # Central coordinator (modes, volume, schedule)
 ├── display_manager.py       # SPI display + BT icon + volume overlay
 ├── button_controller.py     # 5 GPIO buttons (gpiod)
@@ -204,7 +201,9 @@ flockify/
 │   ├── wifi-ap.sh           # WiFi AP hotspot boot script
 │   ├── show_boot_splash.py  # Early boot display (schedule-aware)
 │   └── flockify-backlight-off  # systemd-shutdown display cleanup
-├── systemd/                 # All .service files + raspotify override
+├── config/
+│   └── go-librespot.yml     # go-librespot configuration (format, bitrate, normalisation)
+├── systemd/                 # All .service files (including go-librespot.service)
 ├── docs/
 │   └── index.html           # Project intro page (EN/DE, GitHub Pages)
 ├── tests/                   # 166 pytest tests (runs without Pi hardware)
@@ -224,9 +223,7 @@ flockify/
 - Check wiring to MAX98357A and speaker
 
 ### Spotify playback stuck (no audio, 404/429 errors)
-1. **Web UI fix**: Settings → **Reset Spotify Pairing** → re-pair from phone
-2. **SSH fix**: `sudo systemctl stop raspotify && sudo rm -f /var/lib/raspotify/credentials.json && sudo systemctl start raspotify` → re-pair from phone
-3. **Automatic**: after 10 failures, flockify auto-resets and prompts for re-pairing
+go-librespot persists credentials automatically. If playback fails after a power cycle, pair from your phone once (Spotify → device icon → **flockifybox**). This should only be needed on first setup.
 
 ### Display not working
 - SPI enabled? `ls /dev/spidev0.*`
@@ -261,6 +258,6 @@ python3 -m pytest tests/ -v   # 166 tests, runs on macOS without Pi hardware
 
 ## Dependencies
 
-**System**: python3, libmpv, pulseaudio, pulseaudio-module-bluetooth, avahi-daemon, raspotify, NetworkManager
+**System**: python3, libmpv, pulseaudio, pulseaudio-module-bluetooth, avahi-daemon, go-librespot, NetworkManager
 
 **Python**: flask, spotipy, python-mpv, pulsectl, requests, Pillow, numpy, lgpio, spidev
