@@ -191,6 +191,26 @@ def api_add_playlist():
     return jsonify(playlist_entry), 201
 
 
+@app.route('/api/playlists/<int:idx>', methods=['PATCH'])
+def api_update_playlist(idx):
+    if not config_manager:
+        return jsonify({'error': 'Not initialized'}), 503
+    data = request.get_json(force=True)
+    playlists = config_manager.get('playlists', [])
+    if idx < 0 or idx >= len(playlists):
+        return jsonify({'error': 'Invalid index'}), 404
+    updates = {}
+    if 'allowed_periods' in data:
+        ap = data['allowed_periods']
+        if isinstance(ap, list) and all(p in ('day', 'quiet') for p in ap):
+            updates['allowed_periods'] = ap
+        else:
+            return jsonify({'error': 'Invalid allowed_periods'}), 400
+    if updates:
+        config_manager.update_playlist(idx, updates)
+    return jsonify({'ok': True})
+
+
 @app.route('/api/playlists/<int:idx>', methods=['DELETE'])
 def api_remove_playlist(idx):
     if not config_manager:

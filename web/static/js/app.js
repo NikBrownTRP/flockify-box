@@ -605,6 +605,21 @@
     };
 
     // ------------------------------------------------------------------
+    // Playlists — Update period restrictions
+    // ------------------------------------------------------------------
+
+    window.updatePlaylistPeriods = function (idx) {
+        var row = document.querySelectorAll('.playlist-item')[idx];
+        var checkboxes = row.querySelectorAll('.playlist-periods input[type="checkbox"]');
+        var periods = [];
+        if (checkboxes[0] && checkboxes[0].checked) periods.push('day');
+        if (checkboxes[1] && checkboxes[1].checked) periods.push('quiet');
+
+        api('PATCH', '/api/playlists/' + idx, { allowed_periods: periods })
+            .catch(function (err) { alert('Failed to save: ' + err.message); });
+    };
+
+    // ------------------------------------------------------------------
     // Init
     // ------------------------------------------------------------------
 

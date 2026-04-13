@@ -182,6 +182,82 @@ def test_locked_actions_noop(state_machine):
 # Status
 # -----------------------------------------------------------------
 
+# -----------------------------------------------------------------
+# Period restrictions
+# -----------------------------------------------------------------
+
+def test_next_mode_skips_disallowed_playlist():
+    """During quiet hours, next_mode should skip playlists not allowed in quiet."""
+    playlists = [
+        {'name': 'DayOnly', 'uri': 'spotify:playlist:1', 'cover_url': '', 'cover_cached': '', 'allowed_periods': ['day']},
+        {'name': 'AllDay', 'uri': 'spotify:playlist:2', 'cover_url': '', 'cover_cached': '', 'allowed_periods': ['day', 'quiet']},
+    ]
+
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': playlists, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 0, 'volume': 50}
+    config.save_state = MagicMock()
+
+    sm = StateMachine(config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    scheduler = MagicMock()
+    scheduler.is_locked.return_value = False
+    scheduler.get_current_period.return_value = 'quiet'
+    scheduler.get_effective_max_volume.return_value = 80
+    sm.time_scheduler = scheduler
+
+    # Start at index 0 (DayOnly, not allowed in quiet). Press next_mode.
+    sm.mode_index = 0
+    sm.next_mode()
+    # Should skip DayOnly (index 0) and land on AllDay (index 1)
+    assert sm.mode_index == 1
+
+
+def test_is_mode_allowed_webradio_always_true():
+    """Webradio mode should always be allowed regardless of period."""
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': PLAYLISTS, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 0, 'volume': 50}
+
+    sm = StateMachine(config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    scheduler = MagicMock()
+    scheduler.get_current_period.return_value = 'quiet'
+    sm.time_scheduler = scheduler
+
+    sm.mode_index = sm._webradio_index()
+    assert sm._is_mode_allowed() is True
+
+
+def test_activate_mode_falls_back_on_disallowed():
+    """If current mode not allowed, _activate_mode should switch to webradio."""
+    playlists = [
+        {'name': 'DayOnly', 'uri': 'spotify:playlist:1', 'cover_url': '', 'cover_cached': '', 'allowed_periods': ['day']},
+    ]
+
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': playlists, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 0, 'volume': 50}
+    config.save_state = MagicMock()
+
+    sm = StateMachine(config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    scheduler = MagicMock()
+    scheduler.is_locked.return_value = False
+    scheduler.get_current_period.return_value = 'quiet'
+    scheduler.get_effective_max_volume.return_value = 80
+    sm.time_scheduler = scheduler
+
+    # mode_index 0 is DayOnly, not allowed in quiet
+    sm.mode_index = 0
+    sm._activate_mode()
+    # Should have fallen back to webradio
+    assert sm.mode_index == sm._webradio_index()
+
+
 def test_get_status_structure(state_machine):
     # Provide a time_scheduler so get_status can call get_current_period
     scheduler = MagicMock()

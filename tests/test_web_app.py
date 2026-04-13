@@ -258,3 +258,27 @@ def test_api_spotify_reauth_no_creds(client):
     webapp.spotify_manager.reauth_url.return_value = None
     resp = client.post("/api/spotify/reauth")
     assert resp.status_code == 400
+
+
+# ------------------------------------------------------------------
+# Playlist period restriction API tests
+# ------------------------------------------------------------------
+
+def test_api_update_playlist_periods(client):
+    resp = client.patch(
+        "/api/playlists/0",
+        data=json.dumps({"allowed_periods": ["day"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ok": True}
+    client.config_manager.update_playlist.assert_called_once_with(0, {"allowed_periods": ["day"]})
+
+
+def test_api_update_playlist_invalid_periods(client):
+    resp = client.patch(
+        "/api/playlists/0",
+        data=json.dumps({"allowed_periods": ["night"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400

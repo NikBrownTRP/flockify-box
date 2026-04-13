@@ -40,7 +40,7 @@ class ConfigManager:
         self.config[key] = value
         self.save()
 
-    def add_playlist(self, name, uri, cover_url, cover_cached=''):
+    def add_playlist(self, name, uri, cover_url, cover_cached='', allowed_periods=None):
         """Add a playlist entry (max 10)."""
         playlists = self.config.setdefault('playlists', [])
         if len(playlists) >= self.MAX_PLAYLISTS:
@@ -50,8 +50,18 @@ class ConfigManager:
             'uri': uri,
             'cover_url': cover_url,
             'cover_cached': cover_cached,
+            'allowed_periods': allowed_periods if allowed_periods is not None else ['day', 'quiet'],
         })
         self.save()
+
+    def update_playlist(self, index, updates):
+        """Update fields on a playlist by index. Only updates provided keys."""
+        playlists = self.get('playlists', [])
+        if 0 <= index < len(playlists):
+            for key in ('allowed_periods',):
+                if key in updates:
+                    playlists[index][key] = updates[key]
+            self.set('playlists', playlists)
 
     def remove_playlist(self, index):
         """Remove a playlist by index."""

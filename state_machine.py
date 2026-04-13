@@ -78,11 +78,29 @@ class StateMachine:
             return self.time_scheduler.get_effective_max_volume()
         return self.config.get('max_volume', 80)
 
+    def _is_mode_allowed(self):
+        """Check if current mode is allowed in the current time period."""
+        if self.is_webradio_mode():
+            return True  # webradio always allowed
+        playlist = self.get_current_playlist()
+        if not playlist:
+            return True
+        current_period = 'day'
+        if self.time_scheduler:
+            current_period = self.time_scheduler.get_current_period()
+        allowed = playlist.get('allowed_periods', ['day', 'quiet'])
+        return current_period in allowed
+
     def next_mode(self):
         if self._is_locked():
             return
         with self.lock:
-            self.mode_index = (self.mode_index + 1) % self.get_mode_count()
+            start = self.mode_index
+            count = self.get_mode_count()
+            for _ in range(count):
+                self.mode_index = (self.mode_index + 1) % count
+                if self._is_mode_allowed():
+                    break
             self._activate_mode()
             self._save_state()
         self._notify_activity()
@@ -230,6 +248,9 @@ class StateMachine:
 
     def _activate_mode(self):
         """Core transition logic. Must be called while self.lock is held."""
+        if not self._is_mode_allowed():
+            # Current mode not allowed in this period, switch to webradio
+            self.mode_index = self._webradio_index()
         try:
             if self.is_spotify_mode():
                 playlist = self.get_current_playlist()
