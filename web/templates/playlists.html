@@ -29,18 +29,12 @@
                      onerror="this.style.display='none'">
                 <div class="playlist-info">
                     <span class="playlist-item-name">{{ pl.get('name', 'Untitled') }}</span>
-                    <div class="playlist-periods" style="display:flex;gap:8px;margin-top:6px;">
-                        <label style="font-size:0.8rem;display:flex;align-items:center;gap:4px;color:#6B4C2A;">
-                            <input type="checkbox"
-                                   {{ 'checked' if 'day' in pl.get('allowed_periods', ['day','quiet']) else '' }}
-                                   onchange="updatePlaylistPeriods({{ loop.index0 }})">
-                            Day
-                        </label>
+                    <div class="playlist-periods" style="margin-top:6px;">
                         <label style="font-size:0.8rem;display:flex;align-items:center;gap:4px;color:#6B4C2A;">
                             <input type="checkbox"
                                    {{ 'checked' if 'quiet' in pl.get('allowed_periods', ['day','quiet']) else '' }}
-                                   onchange="updatePlaylistPeriods({{ loop.index0 }})">
-                            Quiet hours
+                                   onchange="updatePlaylistPeriods({{ loop.index0 }}, this.checked)">
+                            Allow during quiet hours
                         </label>
                     </div>
                 </div>
