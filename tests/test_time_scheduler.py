@@ -186,3 +186,37 @@ def test_is_locked_night(mock_datetime, scheduler):
 def test_is_locked_day(mock_datetime, scheduler):
     mock_datetime.now.return_value = datetime(2026, 1, 15, 12, 0, 0)
     assert scheduler.is_locked() is False
+
+
+# -----------------------------------------------------------------
+# _apply_period — quiet auto-skip (the reported bug)
+# -----------------------------------------------------------------
+
+def test_apply_period_quiet_skips_disallowed_playlist():
+    """When entering quiet with a restricted playlist playing, scheduler
+    should call next_mode() to cycle to the next allowed mode."""
+    config = _make_config()
+    sm = _make_state_machine()
+    sm._is_mode_allowed = MagicMock(return_value=False)
+    sm.next_mode = MagicMock()
+    display = MagicMock()
+    scheduler = TimeScheduler(config, sm, display)
+
+    scheduler._apply_period('quiet')
+
+    sm.next_mode.assert_called_once()
+
+
+def test_apply_period_quiet_no_skip_when_allowed():
+    """When entering quiet with an allowed playlist playing, scheduler
+    should NOT call next_mode()."""
+    config = _make_config()
+    sm = _make_state_machine()
+    sm._is_mode_allowed = MagicMock(return_value=True)
+    sm.next_mode = MagicMock()
+    display = MagicMock()
+    scheduler = TimeScheduler(config, sm, display)
+
+    scheduler._apply_period('quiet')
+
+    sm.next_mode.assert_not_called()

@@ -231,6 +231,128 @@ def test_is_mode_allowed_webradio_always_true():
     assert sm._is_mode_allowed() is True
 
 
+def test_prev_mode_cycles_backward():
+    """prev_mode cycles backward through modes."""
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': PLAYLISTS, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 2, 'volume': 50}
+    config.save_state = MagicMock()
+
+    sm = StateMachine(config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    sm.mode_index = 2
+    sm.prev_mode()
+    assert sm.mode_index == 1
+
+
+def test_prev_mode_wraps_at_zero():
+    """prev_mode wraps from 0 to the last mode."""
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': PLAYLISTS, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 0, 'volume': 50}
+    config.save_state = MagicMock()
+
+    sm = StateMachine(config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    sm.mode_index = 0
+    sm.prev_mode()
+    # With 2 playlists + webradio = 3 modes, prev from 0 wraps to 2 (webradio)
+    assert sm.mode_index == sm._webradio_index()
+
+
+def test_prev_mode_skips_disallowed_playlist():
+    """During quiet hours, prev_mode should skip playlists not allowed in quiet."""
+    playlists = [
+        {'name': 'AllDay', 'uri': 'spotify:playlist:1', 'cover_url': '', 'cover_cached': '', 'allowed_periods': ['day', 'quiet']},
+        {'name': 'DayOnly', 'uri': 'spotify:playlist:2', 'cover_url': '', 'cover_cached': '', 'allowed_periods': ['day']},
+    ]
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': playlists, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 2, 'volume': 50}
+    config.save_state = MagicMock()
+
+    sm = StateMachine(config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    scheduler = MagicMock()
+    scheduler.is_locked.return_value = False
+    scheduler.get_current_period.return_value = 'quiet'
+    scheduler.get_effective_max_volume.return_value = 80
+    sm.time_scheduler = scheduler
+
+    # Start at webradio (index 2). prev should skip index 1 (DayOnly) → land on 0 (AllDay).
+    sm.mode_index = 2
+    sm.prev_mode()
+    assert sm.mode_index == 0
+
+
+def test_prev_mode_locked_noop():
+    """prev_mode should do nothing when time scheduler is locked (night)."""
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': PLAYLISTS, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 1, 'volume': 50}
+    config.save_state = MagicMock()
+
+    sm = StateMachine(config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    scheduler = MagicMock()
+    scheduler.is_locked.return_value = True
+    sm.time_scheduler = scheduler
+
+    sm.mode_index = 1
+    sm.prev_mode()
+    # Should not change
+    assert sm.mode_index == 1
+
+
+def test_play_pause_delegates_to_spotify():
+    """play_pause should call spotify.play_pause in spotify mode."""
+    spotify = MagicMock()
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': PLAYLISTS, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 0, 'volume': 50}
+
+    sm = StateMachine(config, spotify, MagicMock(), MagicMock(), MagicMock())
+    sm.mode_index = 0  # spotify mode
+    sm.play_pause()
+    spotify.play_pause.assert_called_once()
+
+
+def test_play_pause_webradio_noop():
+    """play_pause should not call spotify.play_pause in webradio mode."""
+    spotify = MagicMock()
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': PLAYLISTS, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 0, 'volume': 50}
+
+    sm = StateMachine(config, spotify, MagicMock(), MagicMock(), MagicMock())
+    sm.mode_index = sm._webradio_index()
+    sm.play_pause()
+    spotify.play_pause.assert_not_called()
+
+
+def test_prev_track_hard_calls_prev_twice():
+    """prev_track_hard should call spotify.previous_track twice."""
+    spotify = MagicMock()
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        'playlists': PLAYLISTS, 'webradio': WEBRADIO_CFG, 'max_volume': 80, 'volume_step': 5,
+    }.get(key, default)
+    config.get_state.return_value = {'mode_index': 0, 'volume': 50}
+
+    sm = StateMachine(config, spotify, MagicMock(), MagicMock(), MagicMock())
+    sm.mode_index = 0
+    sm.prev_track_hard()
+    assert spotify.previous_track.call_count == 2
+
+
 def test_activate_mode_falls_back_on_disallowed():
     """If current mode not allowed, _activate_mode should switch to webradio."""
     playlists = [

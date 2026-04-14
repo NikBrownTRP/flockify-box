@@ -13,6 +13,10 @@ GPIO_NEXT_TRACK = 16
 GPIO_PREV_TRACK = 26
 GPIO_NEXT_MODE = 12
 
+# Long-press threshold for buttons that have both short- and long-press
+# actions. 700 ms feels responsive but won't trigger on a firm tap.
+LONG_PRESS_SEC = 0.7
+
 
 class ButtonController:
     """Manages physical button inputs and routes them to the state machine."""
@@ -33,13 +37,21 @@ class ButtonController:
                 gpio_pin=GPIO_NEXT_TRACK,
                 short_press_callback=lambda pin: self.state_machine.next_track(),
             ),
+            # Prev track: short = soft prev (rewinds current track via
+            # go-librespot /player/prev), long = hard prev (skips to the
+            # actual previous track regardless of current playback position).
             ButtonHandler(
                 gpio_pin=GPIO_PREV_TRACK,
+                hold_time=LONG_PRESS_SEC,
                 short_press_callback=lambda pin: self.state_machine.prev_track(),
+                hold_callback=lambda pin: self.state_machine.prev_track_hard(),
             ),
+            # Next mode: short = next playlist, long = previous playlist.
             ButtonHandler(
                 gpio_pin=GPIO_NEXT_MODE,
+                hold_time=LONG_PRESS_SEC,
                 short_press_callback=lambda pin: self.state_machine.next_mode(),
+                hold_callback=lambda pin: self.state_machine.prev_mode(),
             ),
         ]
 

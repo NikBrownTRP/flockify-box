@@ -384,6 +384,38 @@ def api_next_mode():
     return jsonify({'ok': True})
 
 
+@app.route('/api/prev_mode', methods=['POST'])
+def api_prev_mode():
+    if not state_machine:
+        return jsonify({'error': 'Not initialized'}), 503
+    state_machine.prev_mode()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/play_pause', methods=['POST'])
+def api_play_pause():
+    if not state_machine:
+        return jsonify({'error': 'Not initialized'}), 503
+    state_machine.play_pause()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/next_track', methods=['POST'])
+def api_next_track():
+    if not state_machine:
+        return jsonify({'error': 'Not initialized'}), 503
+    state_machine.next_track()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/prev_track', methods=['POST'])
+def api_prev_track():
+    if not state_machine:
+        return jsonify({'error': 'Not initialized'}), 503
+    state_machine.prev_track()
+    return jsonify({'ok': True})
+
+
 @app.route('/api/play/<int:idx>', methods=['POST'])
 def api_play(idx):
     if not state_machine:

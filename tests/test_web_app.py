@@ -196,6 +196,30 @@ def test_api_next_mode(client):
     client.state_machine.next_mode.assert_called_once()
 
 
+def test_api_prev_mode(client):
+    resp = client.post("/api/prev_mode")
+    assert resp.status_code == 200
+    client.state_machine.prev_mode.assert_called_once()
+
+
+def test_api_play_pause(client):
+    resp = client.post("/api/play_pause")
+    assert resp.status_code == 200
+    client.state_machine.play_pause.assert_called_once()
+
+
+def test_api_next_track(client):
+    resp = client.post("/api/next_track")
+    assert resp.status_code == 200
+    client.state_machine.next_track.assert_called_once()
+
+
+def test_api_prev_track(client):
+    resp = client.post("/api/prev_track")
+    assert resp.status_code == 200
+    client.state_machine.prev_track.assert_called_once()
+
+
 def test_api_schedule(client):
     resp = client.post(
         "/api/schedule",

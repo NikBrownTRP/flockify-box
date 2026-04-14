@@ -440,6 +440,13 @@ def main():
                 quiet_max = time_scheduler.get_effective_max_volume()
                 if state_machine.volume > quiet_max:
                     state_machine.set_volume(quiet_max)
+                # Also auto-skip past any playlist that isn't allowed in
+                # quiet. _activate_mode's internal check only falls back
+                # to webradio — next_mode() actually cycles to the next
+                # allowed playlist if one exists.
+                if not state_machine._is_mode_allowed():
+                    print("[flockify] Booted into quiet with restricted playlist — auto-skipping")
+                    state_machine.next_mode()
             print("[flockify] Resumed playback from saved state")
     except Exception as e:
         print(f"[flockify] WARNING: Failed to resume state: {e}")

@@ -52,5 +52,51 @@
         </span>
         <button class="btn btn-secondary" id="btn-next-mode" onclick="nextMode()">Next</button>
     </div>
+
+    <div class="playback-controls" id="playback-controls"
+         style="display:flex;justify-content:center;align-items:center;gap:16px;margin-top:16px;
+                {% if status.get('mode') != 'spotify' %}display:none;{% endif %}">
+        <button class="btn btn-icon-round" id="btn-prev-track" onclick="prevTrack()" title="Previous track">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+            </svg>
+        </button>
+        <button class="btn btn-icon-round btn-play-pause" id="btn-play-pause" onclick="playPause()" title="Play / Pause">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                <path d="M6 4h4v16H6zm8 0h4v16h-4z"/>
+            </svg>
+        </button>
+        <button class="btn btn-icon-round" id="btn-next-track" onclick="nextTrack()" title="Next track">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6z"/>
+            </svg>
+        </button>
+    </div>
 </div>
+
+<style>
+.btn-icon-round {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid rgba(61, 41, 20, 0.1);
+    background: #FFF8F0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #3D2914;
+    transition: background 0.15s, transform 0.1s;
+}
+.btn-icon-round:hover { background: #FDE68A; }
+.btn-icon-round:active { transform: scale(0.92); }
+.btn-icon-round.btn-play-pause {
+    width: 60px;
+    height: 60px;
+    background: #F59E0B;
+    color: #FFF;
+    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+}
+.btn-icon-round.btn-play-pause:hover { background: #D97706; }
+</style>
 {% endblock %}

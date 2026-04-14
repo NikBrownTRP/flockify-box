@@ -178,6 +178,10 @@ class SpotifyManager:
         """Resume playback. Returns True/False."""
         return self._local_post("/player/resume")
 
+    def play_pause(self):
+        """Toggle play/pause. Returns True/False."""
+        return self._local_post("/player/playpause")
+
     def set_volume(self, level):
         """Set volume (0-100). Returns True/False."""
         level = max(0, min(100, int(level)))

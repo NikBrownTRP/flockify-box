@@ -156,6 +156,15 @@ class TimeScheduler:
                 quiet_max = self.get_effective_max_volume()
                 if self.state_machine.volume > quiet_max:
                     self.state_machine.set_volume(quiet_max)
+                # Auto-skip if the currently-playing playlist is not
+                # allowed in quiet hours. next_mode() already skips
+                # disallowed modes and falls back to webradio.
+                try:
+                    if not self.state_machine._is_mode_allowed():
+                        print("[scheduler] Current playlist not allowed in quiet — auto-skipping")
+                        self.state_machine.next_mode()
+                except Exception as e:
+                    print(f"[scheduler] Error checking mode for quiet period: {e}")
 
             elif period == 'day':
                 # Restore normal backlight

@@ -107,6 +107,13 @@
                 }
             }
 
+            // Playback controls (Spotify only — pause/next/prev have no
+            // effect on webradio streams)
+            var playback = document.getElementById('playback-controls');
+            if (playback) {
+                playback.style.display = (s.mode === 'spotify') ? 'flex' : 'none';
+            }
+
             // Audio output (safe DOM construction, no innerHTML)
             var output = document.getElementById('audio-output');
             if (output) {
@@ -168,10 +175,27 @@
     };
 
     window.prevMode = function () {
-        api('GET', '/api/status').then(function (s) {
-            var total = (s.total_modes || 1);
-            var prev = (s.mode_index - 1 + total) % total;
-            api('POST', '/api/play/' + prev);
+        // Uses /api/prev_mode which respects allowed_periods (auto-skips
+        // playlists not allowed in the current time period).
+        api('POST', '/api/prev_mode').then(function () {
+            setTimeout(fetchStatus, 500);
+        });
+    };
+
+    window.playPause = function () {
+        api('POST', '/api/play_pause').then(function () {
+            setTimeout(fetchStatus, 500);
+        });
+    };
+
+    window.nextTrack = function () {
+        api('POST', '/api/next_track').then(function () {
+            setTimeout(fetchStatus, 500);
+        });
+    };
+
+    window.prevTrack = function () {
+        api('POST', '/api/prev_track').then(function () {
             setTimeout(fetchStatus, 500);
         });
     };

@@ -95,10 +95,23 @@ class StateMachine:
         if self._is_locked():
             return
         with self.lock:
-            start = self.mode_index
             count = self.get_mode_count()
             for _ in range(count):
                 self.mode_index = (self.mode_index + 1) % count
+                if self._is_mode_allowed():
+                    break
+            self._activate_mode()
+            self._save_state()
+        self._notify_activity()
+
+    def prev_mode(self):
+        """Cycle backward through modes, skipping disallowed ones."""
+        if self._is_locked():
+            return
+        with self.lock:
+            count = self.get_mode_count()
+            for _ in range(count):
+                self.mode_index = (self.mode_index - 1) % count
                 if self._is_mode_allowed():
                     break
             self._activate_mode()
@@ -196,6 +209,42 @@ class StateMachine:
                     self.spotify.previous_track()
                 except Exception as e:
                     print(f"[StateMachine] Error going to previous track: {e}")
+        self._notify_activity()
+
+    def prev_track_hard(self):
+        """Force-go to the actual previous track.
+
+        go-librespot's /player/prev rewinds to 0 if position > 3 s,
+        and only goes to the previous track if position is already near
+        0. Calling it twice (100 ms apart) guarantees we go back a full
+        track regardless of current playback position.
+        """
+        if self._is_locked():
+            return
+        with self.lock:
+            if self.is_spotify_mode():
+                try:
+                    self.spotify.previous_track()
+                    import time as _t
+                    _t.sleep(0.1)
+                    self.spotify.previous_track()
+                except Exception as e:
+                    print(f"[StateMachine] Error going to previous track (hard): {e}")
+        self._notify_activity()
+
+    def play_pause(self):
+        """Toggle playback pause/resume on the current player."""
+        if self._is_locked():
+            return
+        with self.lock:
+            if self.is_spotify_mode():
+                try:
+                    self.spotify.play_pause()
+                except Exception as e:
+                    print(f"[StateMachine] Error toggling play/pause: {e}")
+            # Webradio: mpv has pause/resume but the current architecture
+            # doesn't expose it; pressing play/pause while on webradio
+            # is a no-op for now.
         self._notify_activity()
 
     # ------------------------------------------------------------------

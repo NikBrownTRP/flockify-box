@@ -167,6 +167,23 @@ def test_next_track_calls_local_api(mock_post, mock_spotipy, empty_config):
 
 @patch("spotify_manager.spotipy")
 @patch("spotify_manager.requests.post")
+def test_play_pause_calls_local_api(mock_post, mock_spotipy, empty_config):
+    from spotify_manager import SpotifyManager
+
+    mock_post.return_value = MagicMock(status_code=200)
+    mgr = SpotifyManager(empty_config)
+
+    result = mgr.play_pause()
+    mock_post.assert_called_once_with(
+        "http://127.0.0.1:3678/player/playpause",
+        json=None,
+        timeout=5,
+    )
+    assert result is True
+
+
+@patch("spotify_manager.spotipy")
+@patch("spotify_manager.requests.post")
 def test_previous_track_calls_local_api(mock_post, mock_spotipy, empty_config):
     from spotify_manager import SpotifyManager
 
