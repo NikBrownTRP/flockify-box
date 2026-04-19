@@ -7,6 +7,11 @@ import signal
 import argparse
 import threading
 
+# Path of the clean-shutdown sentinel written by the power-button monitor
+# before calling systemctl poweroff. Checked at startup to suppress
+# auto-play when the Pi rebooted unexpectedly (e.g. powerbank power cycle).
+SHUTDOWN_FLAG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.shutdown_flag')
+
 # Add project root to path for lib imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -86,8 +91,33 @@ def _monitor_power_button():
                     # because our read of /dev/input/event0 may consume
                     # the event before logind sees it.
                     import subprocess as _sp
+
+                    # Disable WiFi + Bluetooth before halt — belt-and-suspenders to
+                    # further reduce current draw while systemd winds down services.
+                    try:
+                        _sp.run(["sudo", "rfkill", "block", "all"],
+                                 check=False, capture_output=True, timeout=3)
+                        print("[power-button] rfkill: WiFi + BT disabled")
+                    except Exception as _e:
+                        print(f"[power-button] rfkill error (non-fatal): {_e}")
+
+                    # Trigger shutdown. Use run() (blocking) so we know the
+                    # systemctl command was dispatched before writing the flag.
+                    # systemctl poweroff returns quickly — it just signals systemd.
                     print("[power-button] Triggering shutdown...")
-                    _sp.Popen(["sudo", "systemctl", "poweroff"])
+                    try:
+                        _sp.run(["sudo", "systemctl", "poweroff"],
+                                 check=False, capture_output=True, timeout=10)
+                        # Write clean-shutdown flag only after a successful dispatch
+                        # so an orphaned flag can't cause a false silent-mode boot.
+                        try:
+                            with open(SHUTDOWN_FLAG_PATH, 'w') as _f:
+                                _f.write('1')
+                            print("[power-button] Wrote clean shutdown flag")
+                        except Exception as _e:
+                            print(f"[power-button] Could not write shutdown flag: {_e}")
+                    except Exception as _e:
+                        print(f"[power-button] systemctl poweroff error: {_e}")
     except FileNotFoundError:
         print("[power-button] /dev/input/event0 not found — power button monitor disabled")
     except PermissionError:
@@ -420,13 +450,30 @@ def main():
     # Respect the time schedule: if we booted into the 'night' period,
     # the scheduler's _apply_period(night) has already paused playback
     # and shown the sleep screen — resuming would trample both.
+    # Check for clean-shutdown flag before entering the try block so that
+    # _clean_shutdown is always defined even if the try block raises early.
+    _clean_shutdown = os.path.exists(SHUTDOWN_FLAG_PATH)
     try:
+        if _clean_shutdown:
+            try:
+                os.remove(SHUTDOWN_FLAG_PATH)
+            except Exception as _e:
+                print(f"[flockify] WARNING: Could not remove shutdown flag: {_e}")
+            state_machine.silent_mode = True
+            print("[flockify] Clean shutdown flag found — booting in silent mode (first button press starts playback)")
+            try:
+                display_manager.show_sleep_screen()
+            except Exception as _e:
+                print(f"[flockify] Could not show sleep screen in silent mode: {_e}")
+
         in_night = (
             time_scheduler is not None
             and time_scheduler.get_current_period() == 'night'
         )
         if in_night:
             print("[flockify] Booted during night period — skipping resume (sleeping)")
+        elif _clean_shutdown:
+            print("[flockify] Silent mode — waiting for first user interaction")
         else:
             with state_machine.lock:
                 state_machine._activate_mode()
