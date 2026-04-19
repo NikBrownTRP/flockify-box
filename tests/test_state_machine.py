@@ -394,3 +394,56 @@ def test_get_status_structure(state_machine):
         'max_volume', 'audio_output', 'is_playing', 'period',
     }
     assert required_keys.issubset(status.keys())
+
+
+# -----------------------------------------------------------------
+# Silent mode (clean-shutdown guard)
+# -----------------------------------------------------------------
+
+def test_silent_mode_default_false(state_machine):
+    """StateMachine initialises with silent_mode=False."""
+    assert state_machine.silent_mode is False
+
+
+def test_activate_mode_skips_playback_in_silent_mode(state_machine):
+    """_activate_mode must not call spotify.play_playlist when silent_mode=True.
+
+    Also asserts webradio.stop was not called, confirming the early return
+    fired rather than playback being skipped through some other path.
+    """
+    state_machine.silent_mode = True
+    state_machine.mode_index = 0  # spotify mode
+    state_machine._activate_mode()
+    state_machine.spotify.play_playlist.assert_not_called()
+    state_machine.webradio.stop.assert_not_called()
+
+
+def test_activate_mode_plays_normally_when_not_silent(state_machine):
+    """_activate_mode calls spotify.play_playlist when silent_mode=False."""
+    state_machine.silent_mode = False
+    state_machine.mode_index = 0  # spotify mode
+    state_machine._activate_mode()
+    state_machine.spotify.play_playlist.assert_called_once()
+
+
+def test_notify_activity_clears_silent_mode(state_machine):
+    """First _notify_activity while silent clears the flag."""
+    state_machine.silent_mode = True
+    state_machine._notify_activity()
+    assert state_machine.silent_mode is False
+
+
+def test_notify_activity_in_silent_mode_triggers_playback(state_machine):
+    """First _notify_activity while silent triggers _activate_mode → playback."""
+    state_machine.silent_mode = True
+    state_machine.mode_index = 0  # spotify mode
+    state_machine._notify_activity()
+    state_machine.spotify.play_playlist.assert_called_once()
+
+
+def test_notify_activity_not_silent_does_not_start_playback(state_machine):
+    """_notify_activity when NOT in silent mode must not call _activate_mode."""
+    state_machine.silent_mode = False
+    state_machine.mode_index = 0  # spotify mode
+    state_machine._notify_activity()
+    state_machine.spotify.play_playlist.assert_not_called()

@@ -17,9 +17,14 @@ class StateMachine:
         self.webradio = webradio_player
         self.display = display_manager
         self.audio_router = audio_router
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.time_scheduler = None  # Set by flockify.py after init
         self.idle_dimmer = None  # Set by flockify.py after init
+        # Set to True by flockify.py on startup when a clean-shutdown flag file is found
+        # (written by _monitor_power_button before calling systemctl poweroff).
+        # Read/written outside self.lock — safe in CPython due to the GIL; single bool assignment
+        # is atomic. Cleared and playback triggered by the first _notify_activity call.
+        self.silent_mode = False
 
         # Load persisted state
         state = self.config.get_state()
@@ -140,7 +145,18 @@ class StateMachine:
             print(f"[StateMachine] Error showing volume overlay: {e}")
 
     def _notify_activity(self):
-        """Tell the idle dimmer that the user just interacted with the box."""
+        """Tell the idle dimmer that the user just interacted with the box.
+
+        If the box booted in silent mode (after a clean J2 shutdown), the
+        first user interaction clears silent mode and starts playback.
+        """
+        if self.silent_mode:
+            self.silent_mode = False
+            try:
+                with self.lock:
+                    self._activate_mode()
+            except Exception as e:
+                print(f"[StateMachine] Error activating from silent mode: {e}")
         if self.idle_dimmer is not None:
             try:
                 self.idle_dimmer.notify_activity()
@@ -297,6 +313,10 @@ class StateMachine:
 
     def _activate_mode(self):
         """Core transition logic. Must be called while self.lock is held."""
+        if self.silent_mode:
+            # Box booted silently after a clean shutdown — don't start playback.
+            # First user action (via _notify_activity) will clear this and activate.
+            return
         if not self._is_mode_allowed():
             # Current mode not allowed in this period, switch to webradio
             self.mode_index = self._webradio_index()
