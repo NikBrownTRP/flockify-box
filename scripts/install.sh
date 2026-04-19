@@ -200,6 +200,41 @@ echo "    - WiFi power saving: enabled"
 echo "    - go-librespot bitrate: 320 kbps"
 
 # =============================================================================
+# Step 11b2: Configure EEPROM POWER_OFF_ON_HALT (Pi 4/5 only)
+# =============================================================================
+echo ">>> Step 11b2: Configuring EEPROM POWER_OFF_ON_HALT=1..."
+
+if command -v rpi-eeprom-config >/dev/null 2>&1; then
+    CURRENT_EEPROM=$(rpi-eeprom-config 2>/dev/null || true)
+    if echo "$CURRENT_EEPROM" | grep -q '^POWER_OFF_ON_HALT=1'; then
+        echo "    POWER_OFF_ON_HALT=1 already set — skipping."
+    else
+        EEPROM_TMP=$(mktemp)
+        if echo "$CURRENT_EEPROM" | grep -q '^POWER_OFF_ON_HALT'; then
+            # Key exists with a different value — replace it
+            echo "$CURRENT_EEPROM" | sed 's/^POWER_OFF_ON_HALT=.*/POWER_OFF_ON_HALT=1/' > "$EEPROM_TMP"
+        else
+            # Key absent — append it
+            echo "$CURRENT_EEPROM" > "$EEPROM_TMP"
+            echo 'POWER_OFF_ON_HALT=1' >> "$EEPROM_TMP"
+        fi
+        if rpi-eeprom-config --apply "$EEPROM_TMP"; then
+            rm -f "$EEPROM_TMP"
+            echo "    EEPROM updated: POWER_OFF_ON_HALT=1"
+            echo "    *** A reboot is required for this change to take effect. ***"
+            echo "    After reboot: pressing J2 will cut all Pi power rails on halt."
+            echo "    The powerbank will auto-shutoff when current drops to near-zero."
+        else
+            rm -f "$EEPROM_TMP"
+            echo "    WARNING: rpi-eeprom-config --apply failed — EEPROM not updated."
+            echo "    Run 'sudo rpi-eeprom-config --edit' manually and add: POWER_OFF_ON_HALT=1"
+        fi
+    fi
+else
+    echo "    rpi-eeprom-config not found — EEPROM step skipped (Pi 3/Zero)."
+fi
+
+# =============================================================================
 # Step 11b3: Install WiFi AP hotspot service
 # =============================================================================
 echo ">>> Step 11b3: Installing WiFi AP hotspot service..."

@@ -454,26 +454,32 @@ def main():
     # _clean_shutdown is always defined even if the try block raises early.
     _clean_shutdown = os.path.exists(SHUTDOWN_FLAG_PATH)
     try:
+        in_night = (
+            time_scheduler is not None
+            and time_scheduler.get_current_period() == 'night'
+        )
+
         if _clean_shutdown:
             try:
                 os.remove(SHUTDOWN_FLAG_PATH)
             except Exception as _e:
                 print(f"[flockify] WARNING: Could not remove shutdown flag: {_e}")
+
+        if in_night:
+            # Night scheduler already applied sleep screen and paused playback.
+            # If this was a clean shutdown, the flag is deleted above but we do
+            # NOT set silent_mode — _apply_period('day') must be free to resume
+            # playback at morning without hitting the silent-mode guard.
+            print("[flockify] Booted during night period — skipping resume (sleeping)")
+        elif _clean_shutdown:
+            # Deliberate J2 shutdown, not night: boot silently and wait for the
+            # first user interaction to start playback.
             state_machine.silent_mode = True
             print("[flockify] Clean shutdown flag found — booting in silent mode (first button press starts playback)")
             try:
                 display_manager.show_sleep_screen()
             except Exception as _e:
                 print(f"[flockify] Could not show sleep screen in silent mode: {_e}")
-
-        in_night = (
-            time_scheduler is not None
-            and time_scheduler.get_current_period() == 'night'
-        )
-        if in_night:
-            print("[flockify] Booted during night period — skipping resume (sleeping)")
-        elif _clean_shutdown:
-            print("[flockify] Silent mode — waiting for first user interaction")
         else:
             with state_machine.lock:
                 state_machine._activate_mode()
