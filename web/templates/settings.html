@@ -8,23 +8,23 @@
         <h2 class="section-title">WiFi Networks</h2>
 
         {% if wifi_status.get('ap_active') %}
-        <div class="wifi-ap-banner" style="background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:12px;margin-bottom:12px;">
-            <span class="badge" style="background:#ff9800;color:#fff;">Hotspot Active</span>
-            <p style="margin:8px 0 0;font-size:0.9em;">
+        <div class="wifi-ap-banner">
+            <span class="badge">Hotspot Active</span>
+            <p>
                 You're connected to the FlockifyBox hotspot.
                 Select your home WiFi below to connect the box to the internet.
             </p>
         </div>
         {% elif wifi_status.get('connected') %}
-        <div class="status-row" style="margin-bottom:8px;">
+        <div class="status-row wifi-status-row">
             <span class="badge badge-green">Connected</span>
-            <span>{{ wifi_status.get('ssid', '?') }}</span>
+            <span class="wifi-ssid">{{ wifi_status.get('ssid', '?') }}</span>
             {% if wifi_status.get('ip') %}
-            <span style="color:#888;font-size:0.85em;margin-left:8px;">({{ wifi_status.get('ip') }})</span>
+            <span class="wifi-ip">({{ wifi_status.get('ip') }})</span>
             {% endif %}
         </div>
         {% else %}
-        <div class="status-row" style="margin-bottom:8px;">
+        <div class="status-row wifi-status-row">
             <span class="badge badge-gray">Disconnected</span>
         </div>
         {% endif %}
@@ -32,13 +32,13 @@
         <button class="btn btn-secondary btn-sm" id="btn-wifi-scan" onclick="scanWifi()">
             Scan for Networks
         </button>
-        <div id="wifi-scan-status" style="display:none;margin:8px 0;">
-            <span style="color:#888;">Scanning...</span>
+        <div id="wifi-scan-status" class="wifi-scan-status" style="display:none">
+            <span class="bt-scanning-text">Scanning...</span>
         </div>
-        <div id="wifi-scan-results" style="display:none;margin-top:8px;"></div>
+        <div id="wifi-scan-results" class="wifi-scan-results" style="display:none"></div>
 
         {% if wifi_saved %}
-        <div style="margin-top:16px;">
+        <div class="wifi-saved-section">
             <label class="form-label">Saved Networks</label>
             <div id="wifi-saved-list">
                 {% for net in wifi_saved %}
@@ -144,7 +144,7 @@
             </div>
         </div>
 
-        <button class="btn btn-primary" onclick="saveSchedule()" style="margin-top:12px">Save Schedule</button>
+        <button class="btn btn-primary save-schedule-btn" onclick="saveSchedule()">Save Schedule</button>
         <div class="error-message" id="schedule-error" style="display:none"></div>
         <div class="success-message" id="schedule-success" style="display:none"></div>
     </section>

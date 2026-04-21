@@ -6,15 +6,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flockify">
-    <meta name="theme-color" content="#6B5B95">
+    <meta name="theme-color" content="#FFFBF5">
     <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32.png">
     <link rel="manifest" href="/static/manifest.json">
-    <title>Super Flockify</title>
+    <title>Flockify Box</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+    <header class="app-header">
+        <div class="app-brand">
+            <span class="app-brand-mark">🐯</span>
+            <span class="app-brand-name">Flockify Box</span>
+        </div>
+    </header>
     <nav class="nav-bar">
         <a href="/" class="nav-tab {% if request.path == '/' %}active{% endif %}">Dashboard</a>
         <a href="/playlists" class="nav-tab {% if request.path == '/playlists' %}active{% endif %}">Playlists</a>
