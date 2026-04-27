@@ -3,6 +3,47 @@
 {% block content %}
 <div class="settings-page">
 
+    {# ---- Software Updates ---- #}
+    <section class="card update-card" id="update-card">
+        <h2 class="section-title">Software Updates</h2>
+
+        <div id="update-status" class="update-status">
+            <span class="bt-scanning-text">Checking for updates…</span>
+        </div>
+
+        <div id="update-available" class="update-available" style="display:none">
+            <div class="update-badge-row">
+                <span class="badge badge-amber">Update available</span>
+                <span class="update-behind" id="update-behind"></span>
+            </div>
+            <p class="update-subject" id="update-latest-subject"></p>
+            <button class="btn btn-primary update-btn" id="btn-update-now" onclick="startUpdate()">
+                Update Now
+            </button>
+        </div>
+
+        <div id="update-uptodate" class="update-uptodate" style="display:none">
+            <span class="badge badge-green">Up to date</span>
+            <p class="update-current" id="update-current-line"></p>
+        </div>
+
+        <div id="update-error" class="update-error-row" style="display:none">
+            <span class="badge badge-gray" id="update-error-badge">Couldn't check</span>
+            <p class="update-error-text" id="update-error-text"></p>
+        </div>
+
+        <div id="update-progress" class="update-progress" style="display:none">
+            <span class="bt-scanning-text">Updating… the box will restart in a moment.</span>
+            <p class="update-progress-hint">
+                Reload this page in 30–60 seconds to confirm the new version.
+            </p>
+        </div>
+
+        <button class="btn-link update-recheck" id="btn-update-recheck" onclick="checkForUpdates(true)">
+            Check again
+        </button>
+    </section>
+
     {# ---- WiFi Networks (first card — most critical when in AP mode) ---- #}
     <section class="card">
         <h2 class="section-title">WiFi Networks</h2>

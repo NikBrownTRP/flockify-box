@@ -641,6 +641,106 @@
     };
 
     // ------------------------------------------------------------------
+    // Software updates
+    // ------------------------------------------------------------------
+
+    function setUpdateView(state) {
+        // state: 'checking' | 'available' | 'uptodate' | 'error' | 'updating'
+        var ids = ['update-status', 'update-available', 'update-uptodate',
+                   'update-error', 'update-progress'];
+        var visible = {
+            'checking':  ['update-status'],
+            'available': ['update-available'],
+            'uptodate':  ['update-uptodate'],
+            'error':     ['update-error'],
+            'updating':  ['update-progress']
+        }[state] || [];
+        ids.forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = visible.indexOf(id) >= 0 ? '' : 'none';
+        });
+        var card = document.getElementById('update-card');
+        if (card) {
+            card.classList.toggle('is-updating', state === 'updating');
+        }
+    }
+
+    function shortenSubject(s) {
+        if (!s) return '';
+        return s.length > 90 ? s.slice(0, 87) + '…' : s;
+    }
+
+    // Render "You are running <code>abc1234</code> · subject" via safe DOM ops.
+    // Subject content comes from `git log` and is treated as untrusted text.
+    function renderCurrentLine(target, sha, subject) {
+        while (target.firstChild) target.removeChild(target.firstChild);
+        target.appendChild(document.createTextNode('You are running '));
+        var code = document.createElement('code');
+        code.textContent = sha || '?';
+        target.appendChild(code);
+        if (subject) {
+            target.appendChild(document.createTextNode(' · ' + subject));
+        }
+    }
+
+    window.checkForUpdates = function (forceRefresh) {
+        var card = document.getElementById('update-card');
+        if (!card) return;
+        setUpdateView('checking');
+
+        var url = '/api/update/check' + (forceRefresh ? '?refresh=1' : '');
+        api('GET', url).then(function (data) {
+            if (data.error === 'offline') {
+                document.getElementById('update-error-badge').textContent = 'Offline';
+                document.getElementById('update-error-text').textContent =
+                    "Couldn't reach GitHub. Check your WiFi connection.";
+                setUpdateView('error');
+                return;
+            }
+            if (data.error) {
+                document.getElementById('update-error-badge').textContent = "Couldn't check";
+                document.getElementById('update-error-text').textContent =
+                    'Update check failed: ' + data.error;
+                setUpdateView('error');
+                return;
+            }
+
+            if (data.update_available) {
+                var behind = document.getElementById('update-behind');
+                behind.textContent = data.behind_count === 1
+                    ? '1 new commit'
+                    : data.behind_count + ' new commits';
+                document.getElementById('update-latest-subject').textContent =
+                    shortenSubject(data.latest_subject);
+                setUpdateView('available');
+            } else {
+                renderCurrentLine(
+                    document.getElementById('update-current-line'),
+                    data.current_sha,
+                    shortenSubject(data.current_subject)
+                );
+                setUpdateView('uptodate');
+            }
+        }).catch(function (err) {
+            document.getElementById('update-error-badge').textContent = "Couldn't check";
+            document.getElementById('update-error-text').textContent =
+                'Update check failed: ' + (err.message || 'unknown error');
+            setUpdateView('error');
+        });
+    };
+
+    window.startUpdate = function () {
+        var btn = document.getElementById('btn-update-now');
+        if (btn) btn.classList.add('loading');
+        api('POST', '/api/update/start').then(function () {
+            setUpdateView('updating');
+        }).catch(function (err) {
+            if (btn) btn.classList.remove('loading');
+            alert('Failed to start update: ' + (err.message || 'unknown error'));
+        });
+    };
+
+    // ------------------------------------------------------------------
     // Init
     // ------------------------------------------------------------------
 
@@ -660,6 +760,11 @@
         // Schedule: bind sliders and toggle
         if (document.getElementById('schedule-enabled')) {
             initScheduleSliders();
+        }
+
+        // Settings: auto-check for updates
+        if (document.getElementById('update-card')) {
+            window.checkForUpdates(false);
         }
     });
 

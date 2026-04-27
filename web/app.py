@@ -5,7 +5,11 @@ Provides a mobile-friendly dashboard, playlist management, and settings UI,
 plus a REST API consumed by the frontend JavaScript.
 """
 
+import os
 import re
+import subprocess
+import time
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from flask import Flask, render_template, request, jsonify, redirect
@@ -519,3 +523,129 @@ def api_bt_forget(address):
     if result.get('ok'):
         return jsonify(result)
     return jsonify(result), 400
+
+
+# ------------------------------------------------------------------
+# Software updates — check GitHub for new commits and trigger update
+# ------------------------------------------------------------------
+
+# Repo root: web/app.py is two levels under the project root.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+_UPDATE_SCRIPT = os.path.join(_REPO_ROOT, 'scripts', 'manual-update.sh')
+
+# Cache the most recent check so frequent page loads / refreshes don't
+# hammer GitHub.
+_update_check_cache = {'data': None, 'ts': 0.0}
+_UPDATE_CHECK_TTL = 30  # seconds
+
+
+def _git(args, timeout=10):
+    """Run a git command in the repo, return stdout (stripped) or None."""
+    try:
+        out = subprocess.check_output(
+            ['git', '-C', _REPO_ROOT] + args,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+        return out.decode('utf-8', errors='replace').strip()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            FileNotFoundError):
+        return None
+
+
+def _check_for_updates():
+    """Compare local HEAD against origin/main. Returns dict for the API."""
+    now = time.time()
+    cached = _update_check_cache['data']
+    if cached and (now - _update_check_cache['ts']) < _UPDATE_CHECK_TTL:
+        return cached
+
+    result = {
+        'current_sha': None,
+        'current_subject': None,
+        'latest_sha': None,
+        'latest_subject': None,
+        'update_available': False,
+        'behind_count': 0,
+        'checked_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'error': None,
+    }
+
+    if not os.path.isdir(os.path.join(_REPO_ROOT, '.git')):
+        result['error'] = 'not_a_git_checkout'
+        _update_check_cache.update(data=result, ts=now)
+        return result
+
+    # Local state — never fail because of this
+    head = _git(['rev-parse', 'HEAD'])
+    if head:
+        result['current_sha'] = head[:7]
+        subject = _git(['log', '-1', '--pretty=%s', 'HEAD'])
+        if subject:
+            result['current_subject'] = subject
+
+    # Fetch latest refs (silent). Short timeout so the UI never hangs long.
+    fetch_out = _git(['fetch', '--quiet', 'origin', 'main'], timeout=10)
+    if fetch_out is None:
+        result['error'] = 'offline'
+        _update_check_cache.update(data=result, ts=now)
+        return result
+
+    remote = _git(['rev-parse', 'origin/main'])
+    if not remote:
+        result['error'] = 'no_remote_ref'
+        _update_check_cache.update(data=result, ts=now)
+        return result
+    result['latest_sha'] = remote[:7]
+    remote_subject = _git(['log', '-1', '--pretty=%s', 'origin/main'])
+    if remote_subject:
+        result['latest_subject'] = remote_subject
+
+    # Count commits we're behind
+    behind = _git(['rev-list', '--count', 'HEAD..origin/main'])
+    try:
+        result['behind_count'] = int(behind) if behind else 0
+    except ValueError:
+        result['behind_count'] = 0
+    result['update_available'] = result['behind_count'] > 0
+
+    _update_check_cache.update(data=result, ts=now)
+    return result
+
+
+@app.route('/api/update/check', methods=['GET'])
+def api_update_check():
+    if request.args.get('refresh') == '1':
+        _update_check_cache['data'] = None  # bust cache on explicit refresh
+    return jsonify(_check_for_updates())
+
+
+@app.route('/api/update/start', methods=['POST'])
+def api_update_start():
+    """Kick off the manual update via systemd-run so it survives Flask
+    restarting itself. Returns immediately."""
+    if not os.path.isfile(_UPDATE_SCRIPT):
+        return jsonify({'started': False,
+                        'error': 'update script missing'}), 500
+
+    cmd = [
+        'sudo', '-n',
+        '/usr/bin/systemd-run',
+        '--unit=flockify-manual-update',
+        '--collect',
+        _UPDATE_SCRIPT,
+    ]
+    try:
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=10)
+    except subprocess.CalledProcessError as e:
+        return jsonify({
+            'started': False,
+            'error': e.output.decode('utf-8', errors='replace').strip()
+                     or 'systemd-run failed',
+        }), 500
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        return jsonify({'started': False, 'error': str(e)}), 500
+
+    # Bust the cache so the next check after restart shows the new SHA.
+    _update_check_cache['data'] = None
+    return jsonify({'started': True})

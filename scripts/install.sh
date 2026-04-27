@@ -254,9 +254,24 @@ echo "    a 'FlockifyBox' hotspot for WiFi configuration via the web UI."
 echo ">>> Step 11c: Installing auto-update service..."
 
 chmod +x "$INSTALL_DIR/scripts/auto-update.sh"
+chmod +x "$INSTALL_DIR/scripts/manual-update.sh"
 cp "$INSTALL_DIR/systemd/flockify-update.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable flockify-update.service
+
+# Install sudoers drop-in so the web UI (running as pi) can trigger
+# manual-update.sh + the systemd-run wrapper without a password.
+SUDOERS_SRC="$INSTALL_DIR/scripts/flockify-update.sudoers"
+SUDOERS_DST=/etc/sudoers.d/flockify-update
+if [ -f "$SUDOERS_SRC" ]; then
+    install -m 0440 -o root -g root "$SUDOERS_SRC" "$SUDOERS_DST"
+    if visudo -cf "$SUDOERS_DST" >/dev/null; then
+        echo "    Installed sudoers drop-in for manual updates."
+    else
+        echo "    WARNING: sudoers drop-in failed validation, removing."
+        rm -f "$SUDOERS_DST"
+    fi
+fi
 
 # Generate SSH deploy key for the pi user if it doesn't exist
 DEPLOY_KEY=/home/pi/.ssh/flockify_deploy
