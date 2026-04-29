@@ -1,0 +1,14 @@
+# Allow the Flockify web UI (running as __FLOCKIFY_USER__) to trigger a
+# manual update without a password. The scope is intentionally narrow:
+# only this one script (which itself only restarts the flockify service
+# after running auto-update.sh) and the systemd-run wrapper used to
+# detach it.
+#
+# This file is rendered from scripts/flockify-update.sudoers.template by
+# scripts/install.sh (placeholders __FLOCKIFY_USER__ and __FLOCKIFY_DIR__
+# are substituted with the actual user and install path) and installed as
+# /etc/sudoers.d/flockify-update (mode 0440, root:root).
+#
+# Validate with: sudo visudo -cf /etc/sudoers.d/flockify-update
+__FLOCKIFY_USER__ ALL=(root) NOPASSWD: __FLOCKIFY_DIR__/scripts/manual-update.sh
+__FLOCKIFY_USER__ ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=flockify-manual-update --collect __FLOCKIFY_DIR__/scripts/manual-update.sh

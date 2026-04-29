@@ -11,7 +11,11 @@
 
 set -u
 TAG=flockify-manual-update
-INSTALL_DIR=/home/pi/flockify
+
+# Derive install dir from the script's own location so this works regardless
+# of which user owns the checkout (boxes may use a renamed default user).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 log() { logger -t "$TAG" -- "$1"; echo "[$TAG] $1"; }
 

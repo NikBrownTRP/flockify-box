@@ -1,9 +1,0 @@
-# Allow the Flockify web UI (running as pi) to trigger a manual update
-# without a password. The scope is intentionally narrow: only this one
-# script (which itself only restarts the flockify service after running
-# auto-update.sh) and the systemd-run wrapper used to detach it.
-#
-# Installed as /etc/sudoers.d/flockify-update (mode 0440, root:root) by
-# scripts/install.sh. Validate with: sudo visudo -cf /etc/sudoers.d/flockify-update
-pi ALL=(root) NOPASSWD: /home/pi/flockify/scripts/manual-update.sh
-pi ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=flockify-manual-update --collect /home/pi/flockify/scripts/manual-update.sh

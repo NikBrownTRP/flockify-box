@@ -259,18 +259,30 @@ cp "$INSTALL_DIR/systemd/flockify-update.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable flockify-update.service
 
-# Install sudoers drop-in so the web UI (running as pi) can trigger
-# manual-update.sh + the systemd-run wrapper without a password.
-SUDOERS_SRC="$INSTALL_DIR/scripts/flockify-update.sudoers"
+# Install sudoers drop-in so the web UI can trigger manual-update.sh +
+# the systemd-run wrapper without a password. The user and install path
+# get substituted into the template — this works for any default-user
+# rename (pi, nbrown, etc.) and any checkout location.
+SUDOERS_TPL="$INSTALL_DIR/scripts/flockify-update.sudoers.template"
 SUDOERS_DST=/etc/sudoers.d/flockify-update
-if [ -f "$SUDOERS_SRC" ]; then
-    install -m 0440 -o root -g root "$SUDOERS_SRC" "$SUDOERS_DST"
-    if visudo -cf "$SUDOERS_DST" >/dev/null; then
-        echo "    Installed sudoers drop-in for manual updates."
+# Determine which user the flockify service runs as. Prefer the existing
+# unit's User= directive, fall back to the directory owner of the checkout.
+FLOCKIFY_USER=$(systemctl show flockify.service -p User --value 2>/dev/null)
+if [ -z "$FLOCKIFY_USER" ] || [ "$FLOCKIFY_USER" = "root" ]; then
+    FLOCKIFY_USER=$(stat -c '%U' "$INSTALL_DIR")
+fi
+if [ -f "$SUDOERS_TPL" ] && [ -n "$FLOCKIFY_USER" ]; then
+    SUDOERS_TMP=$(mktemp)
+    sed -e "s|__FLOCKIFY_USER__|$FLOCKIFY_USER|g" \
+        -e "s|__FLOCKIFY_DIR__|$INSTALL_DIR|g" \
+        "$SUDOERS_TPL" > "$SUDOERS_TMP"
+    if visudo -cf "$SUDOERS_TMP" >/dev/null; then
+        install -m 0440 -o root -g root "$SUDOERS_TMP" "$SUDOERS_DST"
+        echo "    Installed sudoers drop-in for manual updates (user=$FLOCKIFY_USER)."
     else
-        echo "    WARNING: sudoers drop-in failed validation, removing."
-        rm -f "$SUDOERS_DST"
+        echo "    WARNING: sudoers drop-in failed validation, not installing."
     fi
+    rm -f "$SUDOERS_TMP"
 fi
 
 # Generate SSH deploy key for the pi user if it doesn't exist

@@ -6,7 +6,11 @@
 
 set -u  # strict undefined-var check, but NOT set -e (we handle errors ourselves)
 
-INSTALL_DIR=/home/pi/flockify
+# Derive install dir from the script's own location so this works for any
+# user/checkout (historical hardcoded /home/pi/flockify broke on boxes with
+# a renamed default user).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$INSTALL_DIR" || { echo "[auto-update] install dir missing"; exit 0; }
 
 # Skip if offline (short timeout so boot isn't blocked)
