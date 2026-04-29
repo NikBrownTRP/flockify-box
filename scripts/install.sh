@@ -36,7 +36,7 @@ echo ">>> Step 2: Installing system packages..."
 apt-get update
 apt-get install -y python3-pip python3-venv python3-pil python3-numpy \
     python3-spidev libmpv-dev pulseaudio pulseaudio-module-bluetooth \
-    avahi-daemon python3-lgpio gpiod libgpiod-dev
+    avahi-daemon python3-lgpio gpiod libgpiod-dev iw
 
 echo "    System packages installed."
 
@@ -198,6 +198,22 @@ echo "    - CPU governor: powersave"
 echo "    - HDMI output: disabled"
 echo "    - WiFi power saving: enabled"
 echo "    - go-librespot bitrate: 320 kbps"
+
+# Verify low-power state actually engaged. The 'iw' tool is required for WiFi
+# PSM; without it the lowpower service silently no-ops. Surface real state so
+# a broken install is obvious here instead of weeks later as short battery life.
+echo "    Verification:"
+GOV=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "?")
+echo "      cpu0 governor: $GOV"
+if command -v iw >/dev/null 2>&1 && ip link show wlan0 >/dev/null 2>&1; then
+    PS=$(iw dev wlan0 get power_save 2>/dev/null | awk -F': ' '{print $2}')
+    echo "      wlan0 power_save: ${PS:-unknown}"
+else
+    echo "      wlan0 power_save: skipped (iw or wlan0 missing)"
+fi
+if command -v vcgencmd >/dev/null 2>&1; then
+    echo "      throttled flags: $(vcgencmd get_throttled)"
+fi
 
 # =============================================================================
 # Step 11b2: Configure EEPROM POWER_OFF_ON_HALT (Pi 4/5 only)
