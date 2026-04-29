@@ -26,7 +26,8 @@ A Raspberry Pi 5 music player built for kids — Spotify playlists, web radio, p
 |-----------|---------|
 | Raspberry Pi 5 | 2 GB model (or higher) |
 | MicroSD Card | 16 GB+ with Raspberry Pi OS (64-bit, Bookworm/Trixie) |
-| USB-C Power Supply | 5V 3A recommended |
+| USB-C Power Supply | 5V 3A recommended (5A meets Pi 5 spec) |
+| Powerbank (optional) | ≥3 A continuous, no low-current auto-cutoff. Cheap 2 A banks cause undervoltage and shut off prematurely. |
 | SPI Display | 1.83" ST7789 LCD (240x280 pixels, visible area 240x285) |
 | MAX98357A | I²S DAC + Class D amplifier breakout |
 | Speaker | 4–8 Ohm, 3W, connected directly to MAX98357A output |
@@ -234,6 +235,17 @@ go-librespot persists credentials automatically. If playback fails after a power
 - Target device in pairing mode?
 - `bluetoothctl show` → `Powered: yes`?
 - Manual: `bluetoothctl scan on` → `pair <address>`
+
+### Short battery life when running idle
+"Standby" via the J2 power button cuts all rails (`POWER_OFF_ON_HALT=1`) — battery drain is near zero in that state. If the box is *running* idle and dies in ~1 day on a 10 Ah powerbank, check that WiFi power-save actually engaged:
+
+```bash
+iw dev wlan0 get power_save        # expect: Power save: on
+vcgencmd get_throttled             # expect: 0x0 (any nonzero = undervoltage/throttle)
+systemctl status flockify-lowpower
+```
+
+If `iw` is missing (`command not found`), the lowpower service silently no-ops the WiFi step. Fix with `sudo apt-get install -y iw && sudo systemctl restart flockify-lowpower`. Repeated undervoltage events in `dmesg` (`hwmon … Undervoltage detected!`) mean the powerbank can't sustain peak current — use a bank rated ≥3 A continuous.
 
 ## Auto-Update
 
